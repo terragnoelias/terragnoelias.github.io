@@ -212,29 +212,60 @@ function finish(){
 }
 
 /* Procesar dictado */
-function processTranscript(txt){
-  // array de las respuestas habladas
-  let spoken = txt.toLowerCase()
-                  .replace(/y/gi,' ')
-                  .replace(/[.,;]/g,' ')
-                  .split(/\s+/)
-                  .filter(Boolean)
-                  .map(toNumber)
-                  .filter(n=>n!==null);
-  // alineamos vs correctAnswers: si spoken[0] === correct[i] lo asignamos,
-  // si no, insertamos 0 hasta encontrar match
+function processTranscript(txt) {
+  // 1) Convertimos el texto en un array de números hablados
+  const spoken = txt
+    .toLowerCase()
+    .replace(/y/gi, ' ')
+    .replace(/[.,;]/g, ' ')
+    .split(/\s+/)
+    .map(toNumber)
+    .filter(n => n !== null);
+
   const aligned = [];
-  let j=0;
-  for(let i=0; i<correctAnswers.length; i++){
-    if(j<spoken.length && spoken[j]===correctAnswers[i]){
-      aligned[i]=spoken[j++];
+  let j = 0; // índice en spoken
+
+  for (let i = 0; i < correctAnswers.length; i++) {
+    if (j < spoken.length && spoken[j] === correctAnswers[i]) {
+      // coincide exactamente: usamos ese valor
+      aligned[i] = spoken[j++];
     } else {
-      aligned[i]=0;  // salto detectado o sin match
+      // posible salto: comprobamos si spoken[j] se alinea más adelante junto a spoken[j+1]
+      let skip = false;
+      if (j < spoken.length) {
+        // buscamos posición futura ipos donde spoken[j] coincida
+        const ipos = correctAnswers.indexOf(spoken[j], i + 1);
+        if (
+          ipos > i &&                          // apareció después
+          j + 1 < spoken.length &&            // hay un siguiente hablado
+          ipos + 1 < correctAnswers.length && // y posición válida
+          correctAnswers[ipos + 1] === spoken[j + 1]
+        ) {
+          skip = true;
+        }
+      }
+      if (skip) {
+        // detectamos que se saltó correctAnswers[i]
+        aligned[i] = 0;
+        // j no avanza, volvemos a intentar alinear spoken[j] con la siguiente posición
+      } else {
+        // no es un salto claro: consumimos el hablado (aunque sea incorrecto)
+        if (j < spoken.length) {
+          aligned[i] = spoken[j++];
+        } else {
+          // ya no hay más hablados: verdadero salto al final
+          aligned[i] = 0;
+        }
+      }
     }
   }
+
+  // 3) Asignamos al input y disparar chequeo
   document.getElementById('respInput').value = aligned.join(',');
   document.getElementById('checkBtn').click();
 }
+
+
 
 
 /* Puntaje & guardado */
