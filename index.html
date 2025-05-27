@@ -143,21 +143,32 @@ startBtn.onclick = async () => {
   } else launch();
 };
 
-// secuencia con tiempos exactos
+// secuencia con scheduling basado en tiempo absoluto
 function startSeq(N, dt, blinkFraction, k) {
   document.getElementById('log').textContent = '(Mostrando…)';
-  let i = 0; const blink = dt * blinkFraction;
-  function next() {
-    const d = presented[i], box = document.getElementById('displayBox');
-    box.style.visibility = 'hidden';
-    setTimeout(() => { box.textContent = d; box.style.visibility = 'visible'; }, blink);
-    if (i >= k) correct.push(d + presented[i - k]);
-    i++; if (i < N) setTimeout(next, dt); else setTimeout(endSession, dt);
+  correct = [];
+  const blink = dt * blinkFraction;
+  const box = document.getElementById('displayBox');
+  box.style.visibility = 'hidden';
+  const startTime = Date.now();
+  for (let i = 0; i < N; i++) {
+    // ocultar justo al inicio de cada intervalo
+    setTimeout(() => {
+      box.style.visibility = 'hidden';
+    }, i * dt);
+    // mostrar número tras el parpadeo
+    setTimeout(() => {
+      const d = presented[i];
+      box.textContent = d;
+      box.style.visibility = 'visible';
+      if (i >= k) correct.push(d + presented[i - k]);
+      // cuando termine el último, programar cierre
+      if (i === N - 1) {
+        setTimeout(endSession, dt);
+      }
+    }, i * dt + blink);
   }
-  next();
-}
-
-// finalizar prueba
+}// finalizar prueba
 function endSession() {
   sessionActive = false;
   const showResults = () => {
