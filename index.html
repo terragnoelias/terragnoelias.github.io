@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta charset="UTF-8" />
+  <meta charset="UTF-8">
   <title>PASAT n-back (visual + micrófono con live y grabación)</title>
   <style>
     body { font-family: system-ui; background: #f4f7fb; margin: 0; padding: 2rem; }
@@ -62,172 +62,178 @@
 
 <script>
 // palabra->número
-const word2num={cero:0,uno:1,dos:2,tres:3,cuatro:4,cinco:5,seis:6,siete:7,ocho:8,nueve:9,
- diez:10,once:11,doce:12,trece:13,catorce:14,quince:15,dieciseis:16,dieciséis:16,
- diecisiete:17,dieciocho:18};
-function toNumber(tok){
-  const norm=tok.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'');
-  if(word2num[norm]!=null) return word2num[norm];
-  const n=parseInt(tok,10); return isNaN(n)?null:n;
+const word2num = { cero:0, uno:1, dos:2, tres:3, cuatro:4, cinco:5,
+  seis:6, siete:7, ocho:8, nueve:9, diez:10, once:11, doce:12,
+  trece:13, catorce:14, quince:15, dieciseis:16, "dieciséis":16,
+  diecisiete:17, dieciocho:18 };
+function toNumber(tok) {
+  const norm = tok.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+  if (word2num[norm] != null) return word2num[norm];
+  const n = parseInt(tok, 10);
+  return isNaN(n) ? null : n;
 }
 
 // grabación de audio
-let mediaRecorder,recordedChunks=[];
-async function initRecorder(){
-  try{
+let mediaRecorder, recordedChunks = [];
+async function initRecorder() {
+  try {
     const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
     mediaRecorder = new MediaRecorder(stream);
-    mediaRecorder.ondataavailable = e => { if(e.data.size) recordedChunks.push(e.data); };
+    mediaRecorder.ondataavailable = e => { if (e.data.size) recordedChunks.push(e.data); };
     mediaRecorder.onstop = () => {
       const blob = new Blob(recordedChunks, { type: 'audio/webm' });
       const url = URL.createObjectURL(blob);
-      const a = document.createElement('a'); a.href = url;
+      const a = document.createElement('a');
+      a.href = url;
       a.download = `pasat_${Date.now()}.webm`;
       document.body.appendChild(a); a.click(); URL.revokeObjectURL(url);
     };
-  } catch(e){ console.warn('Error initRecorder:', e); }
+  } catch (e) { console.warn('Error initRecorder:', e); }
 }
 
 // reconocimiento + live digits
 const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
 let recognizer = null, rawTranscript = '', sessionActive = false, liveDigits = [];
-if(SpeechRec){
-  recognizer = new SpeechRec(); recognizer.lang='es-ES'; recognizer.continuous=true;
+if (SpeechRec) {
+  recognizer = new SpeechRec(); recognizer.lang = 'es-ES'; recognizer.continuous = true;
   recognizer.onresult = e => {
-    for(let i=e.resultIndex;i<e.results.length;i++){
-      const txt = e.results[i][0].transcript.toLowerCase()
-        .replace(/y/gi,' ').replace(/[.,;]/g,' ');
-      txt.split(/\s+/).forEach(tok=>{
+    for (let i = e.resultIndex; i < e.results.length; i++) {
+      const txt = e.results[i][0].transcript.toLowerCase().replace(/y/gi, ' ').replace(/[.,;]/g, ' ');
+      txt.split(/\s+/).forEach(tok => {
         const n = toNumber(tok);
-        if(n!=null){ liveDigits.push(n);
-          document.getElementById('liveLine').textContent='Tus dígitos: '+liveDigits.join(', ');
+        if (n != null) {
+          liveDigits.push(n);
+          document.getElementById('liveLine').textContent = 'Tus dígitos: ' + liveDigits.join(', ');
         }
       });
       rawTranscript += ' ' + txt;
     }
   };
-  recognizer.onend = () => { if(sessionActive) recognizer.start(); else processTranscript(); };
+  recognizer.onend = () => { if (sessionActive) recognizer.start(); else processTranscript(); };
 }
 
-// sesión\let presented=[], correct=[], info={};
+// datos de sesión
+let presented = [], correct = [], info = {}, blinkFraction;
 
-document.getElementById('startBtn').onclick = async () => {
-  if(!mediaRecorder) await initRecorder();
+// iniciar prueba
+const startBtn = document.getElementById('startBtn');
+startBtn.onclick = async () => {
+  if (!mediaRecorder) await initRecorder();
   const N = +document.getElementById('count').value;
   const dt = +document.getElementById('interval').value;
-  const blinkFraction = +document.getElementById('blinkPct').value/100;
+  blinkFraction = +document.getElementById('blinkPct').value / 100;
   const k = +document.getElementById('back').value;
-  if(k<1 || k>=N){ alert('n-back inválido'); return; }
+  if (k < 1 || k >= N) { alert('n-back inválido'); return; }
 
-  presented = Array.from({length:N}, () => Math.floor(Math.random()*9)+1);
-  correct=[]; rawTranscript=''; recordedChunks=[]; liveDigits=[];
+  presented = Array.from({ length: N }, () => Math.floor(Math.random() * 9) + 1);
+  correct = []; rawTranscript = ''; recordedChunks = []; liveDigits = [];
   document.getElementById('liveLine').textContent = 'Tus dígitos:';
 
   info = { N, dt, k, blinkFraction, date: new Date().toISOString() };
-  ['inputBox','graphBox','tableBox'].forEach(id=>document.getElementById(id).style.display='none');
-  document.getElementById('startBtn').disabled=true;
-  document.getElementById('log').textContent='(Preparando…)';
-  document.getElementById('displayBox').style.visibility='hidden';
+  ['inputBox', 'graphBox', 'tableBox'].forEach(id => document.getElementById(id).style.display = 'none');
+  startBtn.disabled = true;
+  document.getElementById('log').textContent = '(Preparando…)';
+  document.getElementById('displayBox').style.visibility = 'hidden';
 
-  mediaRecorder && mediaRecorder.start();
-  sessionActive = true;
-  const launch = () => setTimeout(()=> startSeq(N, dt, blinkFraction, k), 3000);
-  if(recognizer){ recognizer.start(); recognizer.addEventListener('start', once=>{ recognizer.removeEventListener('start', once); launch(); }); }
-  else launch();
+  mediaRecorder && mediaRecorder.start(); sessionActive = true;
+  const launch = () => setTimeout(() => startSeq(N, dt, blinkFraction, k), 3000);
+  if (recognizer) {
+    recognizer.addEventListener('start', function once() { recognizer.removeEventListener('start', once); launch(); });
+    recognizer.start();
+  } else launch();
 };
 
-function startSeq(N, dt, blinkFraction, k){
-  document.getElementById('log').textContent='(Mostrando…)';
-  let i=0; const blink = dt * blinkFraction;
-  const loop = setInterval(()=>{
-    const d=presented[i], box=document.getElementById('displayBox');
-    box.style.visibility='hidden';
-    setTimeout(()=>{ box.textContent=d; box.style.visibility='visible'; }, blink);
-    if(i>=k) correct.push(d+presented[i-k]);
-    i++;
-    if(i===N){ clearInterval(loop); setTimeout(endSession, dt); }
-  }, dt);
+// secuencia con tiempos exactos
+function startSeq(N, dt, blinkFraction, k) {
+  document.getElementById('log').textContent = '(Mostrando…)';
+  let i = 0; const blink = dt * blinkFraction;
+  function next() {
+    const d = presented[i], box = document.getElementById('displayBox');
+    box.style.visibility = 'hidden';
+    setTimeout(() => { box.textContent = d; box.style.visibility = 'visible'; }, blink);
+    if (i >= k) correct.push(d + presented[i - k]);
+    i++; if (i < N) setTimeout(next, dt); else setTimeout(endSession, dt);
+  }
+  next();
 }
 
-function endSession(){
-  sessionActive=false;
+// finalizar prueba
+function endSession() {
+  sessionActive = false;
   const showResults = () => {
     document.getElementById('log').textContent =
-      'Presentados:\n'+presented.join(', ')+'\n\nCorrectas ('+info.k+'-back):\n'+correct.join(', ');
-    document.getElementById('inputBox').style.display='block';
-    document.getElementById('startBtn').disabled=false;
+      `Presentados:\n${presented.join(', ')}\n\nCorrectas (${info.k}-back):\n${correct.join(', ')}`;
+    document.getElementById('inputBox').style.display = 'block';
+    startBtn.disabled = false;
     mediaRecorder && mediaRecorder.stop();
+    if (recognizer) try { recognizer.stop(); } catch (e) { console.warn(e); }
   };
-  if(recognizer) setTimeout(()=>{ recognizer.stop(); showResults(); }, 2000);
-  else showResults();
+  if (recognizer) setTimeout(showResults, 2000); else showResults();
 }
 
-function processTranscript(){
-  const spoken = rawTranscript.split(/\s+/).map(toNumber).filter(n=>n!=null);
-  let j=0, aligned=[];
-  for(let i=0;i<correct.length;i++){
-    if(j<spoken.length && spoken[j]===correct[i]) aligned[i]=spoken[j++];
-    else aligned[i]=0;
-  }
+// procesar reconocimiento
+function processTranscript() {
+  const spoken = rawTranscript.split(/\s+/).map(toNumber).filter(n => n != null);
+  let j = 0, aligned = [];
+  for (let i = 0; i < correct.length; i++) aligned[i] = (j < spoken.length && spoken[j] === correct[i]) ? spoken[j++] : 0;
   document.getElementById('respInput').value = aligned.join(',');
   document.getElementById('checkBtn').click();
 }
 
-// Chequeo y guardado
-document.getElementById('checkBtn').onclick = () => {
+// calcular y guardar puntaje
+const checkBtn = document.getElementById('checkBtn');
+checkBtn.onclick = () => {
   const user = document.getElementById('respInput').value.split(',').map(Number);
-  let ok=0; user.forEach((v,i)=>{ if(v===correct[i]) ok++; });
-  const pct=(ok/correct.length*100).toFixed(1);
-  document.getElementById('scoreOut').textContent=`Aciertos: ${ok}/${correct.length} (${pct}%)`;
-  document.getElementById('log').innerHTML += '<br><br>Tus respuestas:<br>' + user.map((v,i)=>
-    v===correct[i] ? v : `<span class="err">${v}</span>`).join(', ');
-  const hist = JSON.parse(localStorage.getItem('pasatSessions')||'[]');
+  let ok = 0; user.forEach((v, i) => { if (v === correct[i]) ok++; });
+  const pct = (ok / correct.length * 100).toFixed(1);
+  document.getElementById('scoreOut').textContent = `Aciertos: ${ok}/${correct.length} (${pct}%)`;
+  document.getElementById('log').innerHTML += '<br><br>Tus respuestas:<br>' +
+    user.map((v, i) => v === correct[i] ? v : `<span class="err">${v}</span>`).join(', ');
+  const hist = JSON.parse(localStorage.getItem('pasatSessions') || '[]');
   hist.push({ ...info, ok, total: correct.length, pct, correct, user });
   localStorage.setItem('pasatSessions', JSON.stringify(hist));
 };
 
-// Gráfico
+// gráfico
 document.getElementById('graphBtn').onclick = () => {
-  const data = JSON.parse(localStorage.getItem('pasatSessions')||'[]');
-  if(!data.length){ alert('Sin historial'); return; }
-  data.sort((a,b)=>new Date(a.date)-new Date(b.date));
-  const labels = data.map(s=> new Date(s.date).toLocaleString('es-AR',{day:'2-digit','month':'2-digit','hour':'2-digit','minute':'2-digit'}));
-  const pct = data.map(s=>s.pct);
-  if(window.chart) chart.destroy();
+  const data = JSON.parse(localStorage.getItem('pasatSessions') || '[]');
+  if (!data.length) { alert('Sin historial'); return; }
+  data.sort((a, b) => new Date(a.date) - new Date(b.date));
+  const labels = data.map(s => new Date(s.date).toLocaleString('es-AR',
+    { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }));
+  const pct = data.map(s => s.pct);
+  if (window.chart) chart.destroy();
   chart = new Chart(document.getElementById('graphCanvas'), {
-    type:'line', data:{labels,datasets:[{data:pct,fill:false,tension:0.2}]},
-    options:{scales:{y:{beginAtZero:true,max:100}},plugins:{legend:{display:false}}}
+    type: 'line', data: { labels, datasets: [{ data: pct, fill: false, tension: 0.2 }] },
+    options: { scales: { y: { beginAtZero: true, max: 100 } }, plugins: { legend: { display: false } } }
   });
-  document.getElementById('graphBox').style.display='block';
-  document.getElementById('tableBox').style.display='none';
+  document.getElementById('graphBox').style.display = 'block';
+  document.getElementById('tableBox').style.display = 'none';
 };
 
-// Tabla
+// tabla
 document.getElementById('tableBtn').onclick = () => {
-  const data = JSON.parse(localStorage.getItem('pasatSessions')||'[]');
-  if(!data.length){ alert('Sin historial'); return; }
-  data.sort((a,b)=>new Date(b.date)-new Date(a.date));
+  const data = JSON.parse(localStorage.getItem('pasatSessions') || '[]');
+  if (!data.length) { alert('Sin historial'); return; }
+  data.sort((a, b) => new Date(b.date) - new Date(a.date));
   const tbl = document.getElementById('historyTable');
   tbl.innerHTML = '<tr><th>Fecha</th><th>N</th><th>ms</th><th>blink%</th><th>n-back</th><th>Aciertos</th><th>Total</th><th>%</th></tr>';
-  data.forEach(s=>{
-    const f = new Date(s.date).toLocaleString('es-AR',{day:'2-digit','month':'2-digit','year':'2-digit','hour':'2-digit','minute':'2-digit','second':'2-digit'});
-    const row = document.createElement('tr');
-    row.innerHTML = `
-      <td>${f}</td><td>${s.N}</td><td>${s.dt}</td><td>${s.blinkFraction*100}%</td><td>${s.k}</td>
-      <td>${s.ok}</td><td>${s.total}</td><td>${s.pct}</td>
-    `;
+  data.forEach(s => {
+    const f = new Date(s.date).toLocaleString('es-AR',
+      { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    const row = document.createElement('tr'); row.innerHTML =
+      `<td>${f}</td><td>${s.N}</td><td>${s.dt}</td><td>${s.blinkFraction*100}%</td><td>${s.k}</td><td>${s.ok}</td><td>${s.total}</td><td>${s.pct}</td>`;
     tbl.appendChild(row);
   });
-  document.getElementById('tableBox').style.display='block';
-  document.getElementById('graphBox').style.display='none';
+  document.getElementById('tableBox').style.display = 'block';
+  document.getElementById('graphBox').style.display = 'none';
 };
 
-// Limpiar historial
+// limpiar historial
 document.getElementById('clearBtn').onclick = () => {
-  localStorage.removeItem('pasatSessions');
-  alert('Limpiado');
-  document.getElementById('graphBox').style.display='none';
-  document.getElementById('tableBox').style.display='none';
+  localStorage.removeItem('pasatSessions'); alert('Limpiado');
+  document.getElementById('graphBox').style.display = 'none';
+  document.getElementById('tableBox').style.display = 'none';
 };
 </script>
 </body>
