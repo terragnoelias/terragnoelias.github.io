@@ -1,0 +1,743 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Práctica de Cálculo con Voz</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 20px;
+    }
+    #config-container {
+      margin-bottom: 20px;
+      padding: 15px;
+      border: 1px solid #ddd;
+      border-radius: 5px;
+      background-color: #f9f9f9;
+    }
+    .config-item {
+      margin: 10px 0;
+    }
+    .config-item label {
+      display: inline-block;
+      width: 200px;
+    }
+    .config-item input {
+      width: 100px;
+      padding: 5px;
+    }
+    #operations-container {
+      border: 1px solid #ccc;
+      height: 100px;
+      padding: 10px;
+      margin-bottom: 20px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      font-size: 2em;
+    }
+    .operation-item {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      padding: 5px;
+      margin-bottom: 4px;
+      gap: 10px;
+    }
+    .operation-text {
+      font-size: 1.1em;
+    }
+    .result-placeholder {
+      min-width: 100px;
+      text-align: center;
+      font-weight: bold;
+    }
+    .correcto {
+      color: green;
+    }
+    .incorrecto {
+      color: red;
+    }
+    #status {
+      margin-top: 15px;
+      font-size: 1em;
+      color: #333;
+    }
+    .button-container {
+      margin: 10px 0;
+    }
+    button {
+      padding: 10px 20px;
+      font-size: 1em;
+      cursor: pointer;
+      margin-right: 10px;
+    }
+    #next-btn, #stop-btn {
+      background-color: #4CAF50;
+      color: white;
+      border: none;
+      display: none;
+    }
+    #next-btn:hover, #stop-btn:hover {
+      background-color: #45a049;
+    }
+    #results-container {
+      display: none;
+      margin-top: 20px;
+      padding: 15px;
+      border: 1px solid #ddd;
+      border-radius: 5px;
+    }
+    #timer {
+      font-size: 1.2em;
+      margin: 10px 0;
+      color: #666;
+    }
+    .page-info {
+      margin: 10px 0;
+      font-weight: bold;
+      color: #666;
+    }
+  </style>
+</head>
+<body>
+  <h2>Práctica de Cálculo con Voz</h2>
+  
+  <!-- Configuración inicial -->
+  <div id="config-container">
+    <div class="config-item">
+      <label for="total-operations">Total de operaciones:</label>
+      <input type="number" id="total-operations" value="100" min="1" max="1000">
+    </div>
+    <div class="config-item">
+      <label for="display-time">Tiempo de visualización (ms):</label>
+      <input type="number" id="display-time" value="2000" min="500" max="10000">
+    </div>
+    <div class="config-item">
+      <label for="visibility-percent">Porcentaje de visibilidad (%):</label>
+      <input type="number" id="visibility-percent" value="80" min="10" max="100">
+    </div>
+  </div>
+
+  <div class="button-container">
+    <button id="start-btn">Iniciar práctica</button>
+    <button id="next-btn">Siguiente página</button>
+    <button id="stop-btn">Finalizar todo</button>
+  </div>
+
+  <div id="timer">Tiempo: 00:00.000</div>
+  <div class="page-info" id="page-info"></div>
+  <div id="operations-container"></div>
+  <div id="status">Configura las opciones y presiona "Iniciar práctica" para comenzar.</div>
+
+  <!-- Contenedor para resultados finales -->
+  <div id="results-container">
+    <h3>Resultados Finales</h3>
+    <div id="final-results"></div>
+  </div>
+
+  <script>
+    let reconocimiento;
+    let tiempoInicio;
+    let intervalTimer;
+    let indiceActual = 0;
+    let paginaActual = 1;
+    let ops = []; // Array global para todas las operaciones
+    let resultados = []; // Array para guardar todos los resultados
+    let configuracion = {
+      totalOperaciones: 100,
+      tiempoVisualizacion: 2000,
+      porcentajeVisibilidad: 80
+    };
+    let numerosAcumulados = []; // Array para guardar todos los números reconocidos
+    let resultadosEncontrados = new Map(); // Mapa para guardar los resultados encontrados
+    let operacionTimer = null;
+
+    const statusDiv = document.getElementById('status');
+    const operacionesContainer = document.getElementById('operations-container');
+    const startBtn = document.getElementById('start-btn');
+    const nextBtn = document.getElementById('next-btn');
+    const stopBtn = document.getElementById('stop-btn');
+    const timerDiv = document.getElementById('timer');
+    const pageInfoDiv = document.getElementById('page-info');
+    const resultsContainer = document.getElementById('results-container');
+    const configContainer = document.getElementById('config-container');
+
+    // ------------------------------------------------------
+    // Funciones de configuración y paginación
+    // ------------------------------------------------------
+    
+    function actualizarConfiguracion() {
+      configuracion.totalOperaciones = parseInt(document.getElementById('total-operations').value, 10);
+      configuracion.tiempoVisualizacion = parseInt(document.getElementById('display-time').value, 10);
+      configuracion.porcentajeVisibilidad = parseInt(document.getElementById('visibility-percent').value, 10);
+    }
+
+    function mostrarPagina(numeroPagina) {
+      const inicio = (numeroPagina - 1) * configuracion.operacionesPorPagina;
+      const fin = Math.min(inicio + configuracion.operacionesPorPagina, ops.length);
+      const operacionesPagina = ops.slice(inicio, fin);
+      
+      renderizarOperaciones(operacionesPagina, inicio);
+      indiceActual = inicio;
+      paginaActual = numeroPagina;
+      
+      const totalPaginas = Math.ceil(ops.length / configuracion.operacionesPorPagina);
+      pageInfoDiv.textContent = `Página ${paginaActual} de ${totalPaginas}`;
+      
+      // Mostrar/ocultar botón siguiente según corresponda
+      nextBtn.style.display = paginaActual < totalPaginas ? 'inline-block' : 'none';
+      
+      // Resaltar la primera operación de la página
+      resaltarOperacion(indiceActual);
+    }
+
+    function mostrarResultadosFinales() {
+      resultsContainer.style.display = 'block';
+      const finalResults = document.getElementById('final-results');
+      
+      console.log('Mostrando resultados finales:', resultadosEncontrados);
+      
+      let html = '<table style="width:100%; border-collapse: collapse;">';
+      html += '<tr><th style="border:1px solid #ddd; padding:8px;">Operación</th><th style="border:1px solid #ddd; padding:8px;">Resultado</th><th style="border:1px solid #ddd; padding:8px;">Tu respuesta</th></tr>';
+      
+      let respondidas = 0;
+      let correctas = 0;
+      
+      for (let i = 0; i < ops.length; i++) {
+        const op = ops[i];
+        const respuesta = resultadosEncontrados.get(i);
+        
+        let respuestaTexto = 'No respondido';
+        let clase = '';
+        
+        if (respuesta) {
+          respuestaTexto = respuesta.valor;
+          respondidas++;
+          if (respuesta.correcto && respuesta.valor === op.resultado) {
+            clase = 'correcto';
+            correctas++;
+          } else {
+            clase = 'incorrecto';
+          }
+        }
+        
+        html += `
+          <tr>
+            <td style="border:1px solid #ddd; padding:8px;">${op.texto}</td>
+            <td style="border:1px solid #ddd; padding:8px;">${op.resultado}</td>
+            <td style="border:1px solid #ddd; padding:8px;" class="${clase}">
+              ${respuestaTexto}${clase === 'incorrecto' ? ` ✗ (→ ${op.resultado})` : ' ✓'}
+            </td>
+          </tr>
+        `;
+      }
+      
+      html += '</table>';
+
+      // Agregar estadísticas
+      const porcentajeAciertos = respondidas > 0 ? Math.round((correctas/respondidas) * 100) : 0;
+      
+      html += `
+        <div style="margin-top: 20px; padding: 10px; background-color: #f5f5f5; border-radius: 5px;">
+          <h4>Estadísticas:</h4>
+          <p>Operaciones respondidas: ${respondidas} de ${ops.length}</p>
+          <p>Respuestas correctas: ${correctas}</p>
+          <p>Porcentaje de aciertos: ${porcentajeAciertos}%</p>
+        </div>
+      `;
+      
+      finalResults.innerHTML = html;
+    }
+
+    // ------------------------------------------------------
+    // Funciones auxiliares
+    // ------------------------------------------------------
+    
+    // Función para resaltar la operación actual
+    function resaltarOperacion(idx) {
+      // Primero, quitar el resaltado de todas las operaciones
+      const operaciones = document.querySelectorAll('.operation-item');
+      operaciones.forEach(op => op.style.backgroundColor = '');
+
+      // Luego, resaltar la operación actual si existe
+      const elem = document.getElementById(`op-${idx}`);
+      if (elem) {
+        elem.style.backgroundColor = '#f0f8ff';
+        elem.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+    }
+
+    function actualizarTimer() {
+      const ahora = new Date();
+      const tiempoTranscurrido = ahora - tiempoInicio; // tiempo en milisegundos
+      const minutos = Math.floor(tiempoTranscurrido / 60000);
+      const segundos = Math.floor((tiempoTranscurrido % 60000) / 1000);
+      const milisegundos = tiempoTranscurrido % 1000;
+      timerDiv.textContent = 
+        `Tiempo: ${minutos.toString().padStart(2, '0')}:${segundos.toString().padStart(2, '0')}.${milisegundos.toString().padStart(3, '0')}`;
+    }
+
+    // ------------------------------------------------------
+    // Función para generar una lista de 100 operaciones
+    // ------------------------------------------------------
+    function generarOperaciones() {
+      const ops = [];
+      const tipos = ['+', '-', '×', '÷'];
+
+      let ultimoResultado = null;
+      let ultimoDigito = null;
+
+      // Función auxiliar para verificar si un número es extensión del otro
+      function sonExtension(num1, num2) {
+        const str1 = num1.toString();
+        const str2 = num2.toString();
+        // Verificar si uno es de un dígito y el otro de dos dígitos
+        if ((str1.length === 1 && str2.length === 2) || (str1.length === 2 && str2.length === 1)) {
+          // Si el número de un dígito es el primer dígito del número de dos dígitos
+          if (str1.length === 1) {
+            return str1 === str2[0];
+          } else {
+            return str2 === str1[0];
+          }
+        }
+        return false;
+      }
+
+      // Función para verificar si un número es una decena exacta (10, 20, 30...)
+      function esDecenaExacta(num) {
+        return num >= 10 && num % 10 === 0;
+      }
+
+      while (ops.length < configuracion.totalOperaciones) {
+        const tipo = tipos[Math.floor(Math.random() * tipos.length)];
+        let a, b, texto, resultado;
+        let intentos = 0;
+        let operacionValida = false;
+
+        // Intentar generar una operación válida hasta 10 veces
+        while (!operacionValida && intentos < 10) {
+          switch (tipo) {
+            case '+':
+              // Para suma, al menos uno de los números debe ser diferente de cero
+              do {
+                a = Math.floor(Math.random() * 10);
+                b = Math.floor(Math.random() * 10);
+              } while (a + b === 0);
+              texto = `${a} + ${b}`;
+              resultado = a + b;
+              break;
+
+            case '-':
+              // Para resta, asegurar que el resultado no sea cero
+              do {
+                a = Math.floor(Math.random() * 10);
+                b = Math.floor(Math.random() * 10);
+                // asegurar que no sea negativo
+                if (b > a) [a, b] = [b, a];
+              } while (a - b === 0);
+              texto = `${a} - ${b}`;
+              resultado = a - b;
+              break;
+
+            case '×':
+              // Para multiplicación, al menos uno de los factores debe ser diferente de cero
+              do {
+                a = Math.floor(Math.random() * 10);
+                b = Math.floor(Math.random() * 10);
+              } while (a * b === 0);
+              texto = `${a} × ${b}`;
+              resultado = a * b;
+              break;
+
+            case '÷':
+              // Para división, asegurar que el divisor no sea cero y el resultado no sea cero
+              do {
+                // Divisor de un dígito distinto de cero
+                b = Math.floor(Math.random() * 9) + 1; // 1..9
+                const cociente = Math.floor(Math.random() * 9) + 1; // 1..9 (evitamos el 0)
+                a = b * cociente; // asegura resultado entero de un dígito y no cero
+              } while (a === 0 || b === 0 || (a / b) === 0);
+              texto = `${a} ÷ ${b}`;
+              resultado = a / b;
+              break;
+          }
+
+          // Obtener el primer dígito del resultado actual
+          const primerDigito = parseInt(resultado.toString()[0]);
+          
+          // Verificar que:
+          // 1. El resultado no sea igual al anterior
+          // 2. El primer dígito no sea igual al último dígito del resultado anterior
+          // 3. No sea un caso de extensión (2,12 o 12,2)
+          // 4. Si el último resultado fue una decena exacta, este no puede ser de un dígito
+          if (resultado !== ultimoResultado && 
+              (ultimoDigito === null || primerDigito !== ultimoDigito) &&
+              (ultimoResultado === null || !sonExtension(resultado, ultimoResultado)) &&
+              (!ultimoResultado || !esDecenaExacta(ultimoResultado) || resultado >= 10)) {
+            operacionValida = true;
+          }
+          intentos++;
+        }
+
+        // Si encontramos una operación válida, la agregamos
+        if (operacionValida) {
+          ops.push({ texto, resultado });
+          ultimoResultado = resultado;
+          // Guardar el último dígito del resultado actual
+          ultimoDigito = parseInt(resultado.toString().slice(-1));
+          console.log(`Agregada operación: ${texto} = ${resultado} (último dígito: ${ultimoDigito})`);
+        }
+      }
+
+      return ops;
+    }
+
+    // ------------------------------------------------------
+    // Función para mostrar operaciones secuencialmente
+    // ------------------------------------------------------
+    function mostrarSiguienteOperacion() {
+      if (indiceActual >= ops.length) {
+        operacionesContainer.innerHTML = '';
+        return;
+      }
+
+      const operacion = ops[indiceActual];
+      operacionesContainer.innerHTML = `
+        <div class="operation-item" id="op-${indiceActual}">
+          <div class="operation-text">${operacion.texto} = </div>
+          <div class="result-placeholder">...</div>
+        </div>
+      `;
+
+      // Calcular tiempo de ocultamiento
+      const tiempoOcultar = (configuracion.tiempoVisualizacion * configuracion.porcentajeVisibilidad) / 100;
+
+      // Programar el ocultamiento de la operación
+      setTimeout(() => {
+        operacionesContainer.innerHTML = '';
+      }, tiempoOcultar);
+
+      // Programar la siguiente operación
+      operacionTimer = setTimeout(() => {
+        indiceActual++;
+        mostrarSiguienteOperacion();
+      }, configuracion.tiempoVisualizacion);
+    }
+
+    // ------------------------------------------------------
+    // Función para procesar una respuesta
+    // ------------------------------------------------------
+    function procesarRespuesta(valor, operacionIndex) {
+      const opObj = ops[operacionIndex];
+      const esCorrecto = valor === opObj.resultado;
+      
+      resultadosEncontrados.set(operacionIndex, {
+        valor: valor,
+        correcto: esCorrecto,
+        tiempoRespuesta: new Date() - tiempoInicio
+      });
+
+      // Mostrar el resultado brevemente
+      const resultadoDiv = document.createElement('div');
+      resultadoDiv.className = 'operation-item';
+      resultadoDiv.style.position = 'fixed';
+      resultadoDiv.style.top = '50%';
+      resultadoDiv.style.left = '50%';
+      resultadoDiv.style.transform = 'translate(-50%, 100%)';
+      resultadoDiv.style.backgroundColor = 'rgba(255, 255, 255, 0.9)';
+      resultadoDiv.style.padding = '10px';
+      resultadoDiv.style.borderRadius = '5px';
+      resultadoDiv.style.zIndex = '1000';
+      
+      resultadoDiv.innerHTML = `
+        <div class="operation-text">${opObj.texto} = </div>
+        <div class="result-placeholder ${esCorrecto ? 'correcto' : 'incorrecto'}">
+          ${valor} ${esCorrecto ? '✓' : `✗ (→ ${opObj.resultado})`}
+        </div>
+      `;
+      
+      document.body.appendChild(resultadoDiv);
+      
+      setTimeout(() => {
+        resultadoDiv.remove();
+      }, 1000);
+
+      // Si es la última operación, finalizar
+      if (operacionIndex === ops.length - 1) {
+        setTimeout(() => {
+          if (reconocimiento) {
+            reconocimiento.stop();
+            reconocimiento = null;
+          }
+          if (intervalTimer) {
+            clearInterval(intervalTimer);
+            intervalTimer = null;
+          }
+          if (operacionTimer) {
+            clearTimeout(operacionTimer);
+            operacionTimer = null;
+          }
+          startBtn.disabled = false;
+          stopBtn.style.display = 'none';
+          mostrarResultadosFinales();
+          statusDiv.textContent = '¡Has completado todas las operaciones!';
+        }, 500);
+      }
+
+      return true;
+    }
+
+    // ------------------------------------------------------
+    // Función principal para manejar reconocimiento de voz
+    // ------------------------------------------------------
+    function iniciarReconocimiento() {
+      // Actualizar configuración
+      actualizarConfiguracion();
+      
+      // Ocultar configuración
+      configContainer.style.display = 'none';
+      
+      // Configuración inicial
+      startBtn.disabled = true;
+      stopBtn.style.display = 'inline-block';
+      operacionesContainer.innerHTML = '';
+      statusDiv.textContent = 'Esperando permiso del micrófono...';
+      
+      // Generar todas las operaciones
+      ops = generarOperaciones();
+      indiceActual = 0;
+      resultados = new Array(ops.length);
+      resultadosEncontrados.clear();
+
+      // Compatibilidad navegador
+      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+      const SpeechGrammarList = window.SpeechGrammarList || window.webkitSpeechGrammarList;
+      
+      if (!SpeechRecognition) {
+        alert('Este navegador no soporta SpeechRecognition. Prueba con Chrome.');
+        return;
+      }
+
+      reconocimiento = new SpeechRecognition();
+      reconocimiento.lang = 'es-ES';
+      reconocimiento.interimResults = false;
+      reconocimiento.continuous = true;
+      reconocimiento.maxAlternatives = 1;
+
+      reconocimiento.onstart = () => {
+        console.log('Reconocimiento de voz iniciado - Esperando palabras...');
+        tiempoInicio = new Date();
+        intervalTimer = setInterval(actualizarTimer, 50);
+        statusDiv.textContent = 'Micrófono activado. Di los resultados conforme aparezcan las operaciones.';
+        // Iniciar la secuencia de operaciones después de un breve retraso
+        setTimeout(mostrarSiguienteOperacion, 1000);
+      };
+
+      reconocimiento.onresult = (event) => {
+        const resultado = event.results[event.results.length - 1];
+        if (resultado.isFinal) {
+          let textoHablado = resultado[0].transcript.trim().toLowerCase();
+          
+          console.log('=== Información del reconocimiento ===');
+          console.log('Texto exacto reconocido:', textoHablado);
+          console.log('Confianza del reconocimiento:', resultado[0].confidence);
+
+          // Separar en palabras y filtrar solo números
+          const numerosReconocidos = textoHablado.split(/\s+/).filter(palabra => !isNaN(palabra));
+          console.log('Números reconocidos:', numerosReconocidos);
+
+          let cambios = false;
+          
+          // Convertir todos los números reconocidos a dígitos individuales
+          let digitosReconocidos = [];
+          for (const numeroReconocido of numerosReconocidos) {
+            // Eliminar ceros a la izquierda pero mantener el cero si es el único dígito
+            const numeroLimpio = numeroReconocido.replace(/^0+(?=\d)/, '');
+            const digitos = numeroLimpio.split('').map(Number);
+            digitosReconocidos.push(...digitos);
+          }
+          
+          console.log('Dígitos reconocidos:', digitosReconocidos);
+          
+          // Índice actual en el array de dígitos reconocidos
+          let indiceDigito = 0;
+          
+          // Recorrer las operaciones en orden
+          for (let k = 0; k < ops.length; k++) {
+            // Si esta operación ya fue respondida, la saltamos
+            if (resultadosEncontrados.has(k)) {
+              continue;
+            }
+
+            // Si ya no quedan dígitos por procesar, salimos
+            if (indiceDigito >= digitosReconocidos.length) {
+              break;
+            }
+
+            const resultadoEsperado = ops[k].resultado;
+            const digitosEsperados = resultadoEsperado.toString().split('').map(Number);
+            
+            // Si el número de dígitos disponibles es menor que los necesarios, salimos
+            if (indiceDigito + digitosEsperados.length > digitosReconocidos.length) {
+              break;
+            }
+            
+            // Obtener los dígitos dichos para este número
+            const digitosDichos = digitosReconocidos.slice(indiceDigito, indiceDigito + digitosEsperados.length);
+            const numeroDicho = parseInt(digitosDichos.join(''), 10);
+            
+            // Comparar el número formado
+            console.log(`Comparando: dicho=${numeroDicho} (${digitosDichos.join('')}), esperado=${resultadoEsperado} (${digitosEsperados.join('')})`);
+            
+            procesarRespuesta(numeroDicho, k);
+            cambios = true;
+            
+            // Avanzar el índice por el número de dígitos del resultado esperado
+            indiceDigito += digitosEsperados.length;
+          }
+
+          if (cambios) {
+            // Actualizar el status con el número de coincidencias encontradas
+            statusDiv.textContent = `Continúa diciendo números. Has respondido ${resultadosEncontrados.size} operaciones.`;
+          }
+        }
+      };
+
+      reconocimiento.onerror = (event) => {
+        console.error('Error en reconocimiento:', event.error);
+        if (event.error === 'no-speech') {
+          console.log('No se detectó voz - Asegúrate de hablar claramente');
+        } else if (event.error === 'not-allowed') {
+          // Si se deniega el permiso del micrófono
+          statusDiv.textContent = 'Error: No se concedió permiso para usar el micrófono. Por favor, recarga la página y acepta el permiso.';
+          startBtn.disabled = false;
+          stopBtn.style.display = 'none';
+          operacionesContainer.innerHTML = ''; // Limpiar contenedor si hay error
+        }
+      };
+
+      reconocimiento.onend = () => {
+        if (reconocimiento && indiceActual < ops.length) {
+          console.log('Reiniciando reconocimiento...');
+          reconocimiento.start();
+        }
+      };
+
+      // Diccionario de números en texto
+      const numerosEnTexto = {
+        'cero': 0, 'uno': 1, 'dos': 2, 'tres': 3, 'cuatro': 4,
+        'cinco': 5, 'seis': 6, 'siete': 7, 'ocho': 8, 'nueve': 9,
+        'diez': 10, 'once': 11, 'doce': 12, 'trece': 13, 'catorce': 14,
+        'quince': 15, 'dieciséis': 16, 'dieciseis': 16, 'diecisiete': 17,
+        'dieciocho': 18, 'diecinueve': 19, 'veinte': 20,
+        'veintiuno': 21, 'veintidós': 22, 'veintidos': 22, 'veintitrés': 23,
+        'veintitres': 23, 'veinticuatro': 24, 'veinticinco': 25,
+        'veintiséis': 26, 'veintiseis': 26, 'veintisiete': 27,
+        'veintiocho': 28, 'veintinueve': 29, 'treinta': 30,
+        'treinta y uno': 31, 'treinta y dos': 32, 'treinta y tres': 33,
+        'treinta y cuatro': 34, 'treinta y cinco': 35, 'treinta y seis': 36,
+        'treinta y siete': 37, 'treinta y ocho': 38, 'treinta y nueve': 39,
+        'cuarenta': 40, 'cuarenta y uno': 41, 'cuarenta y dos': 42,
+        'cuarenta y tres': 43, 'cuarenta y cuatro': 44, 'cuarenta y cinco': 45,
+        'cuarenta y seis': 46, 'cuarenta y siete': 47, 'cuarenta y ocho': 48,
+        'cuarenta y nueve': 49, 'cincuenta': 50, 'cincuenta y uno': 51,
+        'cincuenta y dos': 52, 'cincuenta y tres': 53, 'cincuenta y cuatro': 54,
+        'cincuenta y cinco': 55, 'cincuenta y seis': 56, 'cincuenta y siete': 57,
+        'cincuenta y ocho': 58, 'cincuenta y nueve': 59, 'sesenta': 60,
+        'sesenta y uno': 61, 'sesenta y dos': 62, 'sesenta y tres': 63,
+        'sesenta y cuatro': 64, 'sesenta y cinco': 65, 'sesenta y seis': 66,
+        'sesenta y siete': 67, 'sesenta y ocho': 68, 'sesenta y nueve': 69,
+        'setenta': 70, 'setenta y uno': 71, 'setenta y dos': 72,
+        'setenta y tres': 73, 'setenta y cuatro': 74, 'setenta y cinco': 75,
+        'setenta y seis': 76, 'setenta y siete': 77, 'setenta y ocho': 78,
+        'setenta y nueve': 79, 'ochenta': 80, 'ochenta y uno': 81,
+        'ochenta y dos': 82, 'ochenta y tres': 83, 'ochenta y cuatro': 84,
+        'ochenta y cinco': 85, 'ochenta y seis': 86, 'ochenta y siete': 87,
+        'ochenta y ocho': 88, 'ochenta y nueve': 89, 'noventa': 90,
+        'noventa y uno': 91, 'noventa y dos': 92, 'noventa y tres': 93,
+        'noventa y cuatro': 94, 'noventa y cinco': 95, 'noventa y seis': 96,
+        'noventa y siete': 97, 'noventa y ocho': 98, 'noventa y nueve': 99,
+        'cien': 100
+      };
+
+      // Función para validar si un texto contiene solo letras y espacios
+      function esTextoValido(texto) {
+        return /^[a-záéíóúñ\s]+$/i.test(texto);
+      }
+
+      // Función para normalizar texto (quitar tildes y convertir a minúsculas)
+      function normalizarTexto(texto) {
+        return texto.toLowerCase()
+          .normalize("NFD")
+          .replace(/[\u0300-\u036f]/g, "")
+          .replace(/[^a-z\s]/g, ''); // Eliminar cualquier caracter que no sea letra o espacio
+      }
+
+      // Iniciar reconocimiento
+      try {
+        reconocimiento.start();
+      } catch (error) {
+        console.error('Error al iniciar el reconocimiento:', error);
+        statusDiv.textContent = 'Error al iniciar el reconocimiento. Por favor, intenta de nuevo.';
+        startBtn.disabled = false;
+        stopBtn.style.display = 'none';
+      }
+    }
+
+    // ------------------------------------------------------
+    // Event Listeners
+    // ------------------------------------------------------
+    startBtn.addEventListener('click', iniciarReconocimiento);
+    
+    nextBtn.addEventListener('click', () => {
+      mostrarPagina(paginaActual + 1);
+    });
+
+    stopBtn.addEventListener('click', () => {
+      // Detener el temporizador de operaciones
+      if (operacionTimer) {
+        clearTimeout(operacionTimer);
+        operacionTimer = null;
+      }
+
+      // Detener el reconocimiento
+      if (reconocimiento) {
+        reconocimiento.stop();
+        reconocimiento = null;
+      }
+
+      // Detener el timer
+      if (intervalTimer) {
+        clearInterval(intervalTimer);
+        intervalTimer = null;
+      }
+
+      // Limpiar el contenedor de operaciones
+      operacionesContainer.innerHTML = '';
+
+      // Calcular tiempo final
+      const tiempoFinal = new Date();
+      const tiempoTotal = tiempoFinal - tiempoInicio;
+      const minutos = Math.floor(tiempoTotal / 60000);
+      const segundos = Math.floor((tiempoTotal % 60000) / 1000);
+      const milisegundos = tiempoTotal % 1000;
+
+      // Actualizar el timer con el tiempo final
+      timerDiv.textContent = `Tiempo final: ${minutos}:${segundos.toString().padStart(2, '0')}.${milisegundos.toString().padStart(3, '0')}`;
+
+      // Actualizar la interfaz
+      startBtn.disabled = false;
+      stopBtn.style.display = 'none';
+      statusDiv.textContent = '¡Práctica finalizada!';
+
+      // Esperar un momento para asegurar que todos los resultados se hayan procesado
+      setTimeout(() => {
+        console.log('Finalizando práctica. Resultados encontrados:', resultadosEncontrados);
+        mostrarResultadosFinales();
+      }, 500);
+    });
+  </script>
+</body>
+</html>
