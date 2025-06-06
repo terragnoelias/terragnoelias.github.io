@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<title>PASAT n-back (visual con respuesta por micrófono)</title>
+<style>
+  body { font-family: system-ui; background: #f4f7fb; margin: 0; padding: 2rem; }
+  label { display: block; margin: .5rem 0; }
+  button { margin: .8rem .4rem .8rem 0; padding: .4rem 1rem; font-size: 1rem; }
+  #log, #inputBox { margin-top: 2rem; background: #fff; padding: 1rem; border-radius: .4rem;
+                   font-family: monospace; white-space: pre-wrap; }
+  #inputBox { display: none; }
+  #inputBox input { width: 100%; padding: .4rem; font-family: monospace; font-size: 1rem; }
+  #graphBox, #tableBox { display: none; margin-top: 2rem; }
+  #historyTable { border-collapse: collapse; width: 100%; }
+  #historyTable th, #historyTable td {
+    border: 1px solid #ccc; padding: .4rem; text-align: center;
+    vertical-align: top; font-family: monospace; white-space: pre-wrap;
+  }
+  #historyTable th { background: #e8eaf0; }
+  .err { color: #c62828; font-weight: bold; }
+  #displayBox { font-family: monospace; font-size: 4rem; text-align: center;
+                 margin-top: 1rem; visibility: hidden; }
+</style>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+<h2>PASAT visual – configurable con respuesta por micrófono</h2>
+
+<label>Cantidad de dígitos:
+  <input id="count" type="number" min="2" value="60">
+</label>
+
+<label>Intervalo (ms):
+  <input id="interval" type="number" min="300" value="1000">
+</label>
+
+<label>Parpadeo (% intervalo):
+  <input id="blinkPct" type="number" min="0" max="100" value="20">
+</label>
+
+<label>n-back (1 = clásico):
+  <input id="back" type="number" min="1" value="1">
+</label>
+
+<button id="startBtn">Iniciar</button>
+<button id="graphBtn">Ver historial</button>
+<button id="tableBtn">Ver tabla</button>
+<button id="clearBtn">Limpiar historial</button>
+
+<div id="log"></div>
+<div id="displayBox"></div>
+
+<!-- Entrada manual / reconocimiento -->
+<div id="inputBox">
+  <p>Responde verbalmente a cada suma n-back; si prefieres, puedes introducir manualmente:
+     respuestas separadas por coma:</p>
+  <input id="respInput" placeholder="e.g. 7,10,12,11,…">
+  <button id="checkBtn">Calcular puntaje</button>
+  <div id="scoreOut"></div>
+</div>
+
+<div id="graphBox"><canvas id="graphCanvas" width="600" height="300"></canvas></div>
+<div id="tableBox"><table id="historyTable"></table></div>
+
+<script>
+// mapeo palabra->número
+const word2num = { cero:0, uno:1, dos:2, tres:3, cuatro:4, cinco:5,
+  seis:6, siete:7, ocho:8, nueve:9, diez:10, once:11, doce:12,
+  trece:13, catorce:14, quince:15, dieciseis:16, dieciséis:16,
+  diecisiete:17, dieciocho:18 };
+function toNumber(tok){
+  const norm = tok.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+  if(word2num.hasOwnProperty(norm)) return word2num[norm];
+  const n = parseInt(tok, 10);
+  return isNaN(n) ? null : n;
+}
+
+// reconocimiento de voz
+const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
+let recognizer = null, rawTranscript = '';
+let sessionActive = false;
+if(SpeechRec) {
+  recognizer = new SpeechRec();
+  recognizer.lang = 'es-ES';
+  recognizer.continuous = true;
+  recognizer.onresult = e => {
+    for(let i = e.resultIndex; i < e.results.length; i++){
+      rawTranscript += ' ' + e.results[i][0].transcript
+        .toLowerCase().replace(/y/gi,' ').replace(/[.,;]/g,' ');
+    }
+  };
+  recognizer.onend = () => {
+    if(sessionActive) recognizer.start();
+    else processTranscript(rawTranscript.trim());
+  };
+}
+
+// variables de sesión
+let presentedDigits = [], correctAnswers = [], sessionInfo = {};
+
+// iniciar sesión
+document.getElementById('startBtn').onclick = () => {
+  const N = +document.getElementById('count').value;
+  const dt = +document.getElementById('interval').value;
+  const blinkPct = +document.getElementById('blinkPct').value / 100;
+  const k = +document.getElementById('back').value;
+  if(k < 1 || k >= N){ alert('n-back debe ser ≥1 y menor que la cantidad.'); return; }
+
+  presentedDigits = Array.from({length: N}, () => Math.floor(Math.random()*9)+1);
+  correctAnswers = [];
+  rawTranscript = '';
+  sessionInfo = { fecha: new Date().toISOString(), N, dt, k, blinkPct };
+
+  ['inputBox','graphBox','tableBox'].forEach(id =>
+    document.getElementById(id).style.display = 'none'
+  );
+  document.getElementById('startBtn').disabled = true;
+  document.getElementById('log').textContent = '(Preparando reconocimiento y visual…)';
+  document.getElementById('displayBox').style.visibility = 'hidden';
+
+  sessionActive = true;
+  const launch = () => {
+    document.getElementById('log').textContent = '(Comienza en 3 s…)';
+    setTimeout(() => startSequence(N, dt, blinkPct, k), 3000);
+  };
+  if(recognizer) {
+    recognizer.start();
+    recognizer.addEventListener('start', function once(){
+      recognizer.removeEventListener('start', once);
+      launch();
+    });
+  } else launch();
+};
+
+// mostrar secuencia con parpadeo
+function startSequence(N, dt, blinkPct, k){
+  document.getElementById('log').textContent = '(Mostrando secuencia…)';
+  let i=0;
+  const blink = dt * blinkPct;
+  const loop = setInterval(() => {
+    const d = presentedDigits[i];
+    const box = document.getElementById('displayBox');
+    box.style.visibility = 'hidden';
+    setTimeout(() => { box.textContent = d; box.style.visibility = 'visible'; }, blink);
+    if(i >= k) correctAnswers.push(d + presentedDigits[i-k]);
+    i++;
+    if(i === N){ clearInterval(loop); setTimeout(finish, dt); }
+  }, dt);
+}
+
+// finalizar sesión
+function finish(){
+  sessionActive = false;
+  const showResults = () => {
+    const logEl = document.getElementById('log');
+    logEl.textContent =
+      'Dígitos presentados:\n' + presentedDigits.join(', ') +
+      '\n\nRespuestas correctas ('+sessionInfo.k+'-back):\n' + correctAnswers.join(', ');
+    document.getElementById('inputBox').style.display = 'block';
+    document.getElementById('startBtn').disabled = false;
+  };
+  if(recognizer) {
+    setTimeout(() => { recognizer.stop(); showResults(); }, 2000);
+  } else showResults();
+}
+
+// procesar respuestas habladas
+function processTranscript(txt){
+  const spoken = txt.split(/\s+/).map(toNumber).filter(n=>n!==null);
+  const aligned = []; let j=0;
+  for(let i=0; i<correctAnswers.length; i++){
+    if(j<spoken.length && spoken[j]===correctAnswers[i]) aligned[i]=spoken[j++];
+    else{
+      let skip=false;
+      if(j<spoken.length){
+        const ipos = correctAnswers.indexOf(spoken[j], i+1);
+        if(ipos>i && j+1<spoken.length && ipos+1<correctAnswers.length && correctAnswers[ipos+1]===spoken[j+1]) skip=true;
+      }
+      aligned[i] = skip?0:(j<spoken.length?spoken[j++]:0);
+    }
+  }
+  document.getElementById('respInput').value = aligned.join(',');
+  document.getElementById('checkBtn').click();
+}
+
+// calcular y guardar puntaje
+function mark(corr,user){ return user.map((n,i)=>n===corr[i]?n:`<span class="err">${n}</span>`).join(', '); }
+document.getElementById('checkBtn').onclick = () => {
+  const user = document.getElementById('respInput').value.split(',').map(s=>+s);
+  let ok=0; for(let i=0;i<correctAnswers.length;i++) if(user[i]===correctAnswers[i]) ok++;
+  const pct = (ok/correctAnswers.length*100).toFixed(1);
+  document.getElementById('scoreOut').textContent = `Aciertos: ${ok}/${correctAnswers.length} (${pct}%)`;
+  document.getElementById('log').innerHTML += '<br><br>Tus respuestas:<br>' + mark(correctAnswers,user);
+  const reg = {...sessionInfo, aciertos:ok, totalCorr:correctAnswers.length, pct, correct:correctAnswers, dicho:user};
+  const hist = JSON.parse(localStorage.getItem('pasatSessions')||'[]'); hist.push(reg);
+  localStorage.setItem('pasatSessions', JSON.stringify(hist));
+};
+
+// gráfico
+document.getElementById('graphBtn').onclick = () => {
+  const data = JSON.parse(localStorage.getItem('pasatSessions')||'[]'); if(!data.length){alert('Sin sesiones guardadas.');return;}
+  data.sort((a,b)=>new Date(a.fecha)-new Date(b.fecha));
+  const labels = data.map(s=>new Date(s.fecha).toLocaleString('es-AR',{day:'2-digit','month':'2-digit','hour':'2-digit','minute':'2-digit'}));
+  const pct    = data.map(s=>s.pct);
+  if(window.pasatChart) pasatChart.destroy();
+  window.pasatChart = new Chart(document.getElementById('graphCanvas'),{type:'line',data:{labels,datasets:[{data:pct,fill:false,tension:0.2}]},options:{scales:{y:{beginAtZero:true,max:100}},plugins:{legend:{display:false}}}});
+  document.getElementById('graphBox').style.display='block'; document.getElementById('tableBox').style.display='none';
+};
+
+// tabla
+document.getElementById('tableBtn').onclick = () => {
+  const data = JSON.parse(localStorage.getItem('pasatSessions')||'[]'); if(!data.length){alert('Sin sesiones guardadas.');return;}
+  data.sort((a,b)=>new Date(b.fecha)-new Date(a.fecha));
+  const tbl = document.getElementById('historyTable'); tbl.innerHTML = '<tr><th>Fecha</th><th>N</th><th>ms</th><th>n-back</th><th>Aciertos</th><th>Total</th><th>%</th><th>Correctos</th><th>Dichos</th></tr>';
+  data.forEach(s=>{
+    const f = new Date(s.fecha).toLocaleString('es-AR',{day:'2-digit','month':'2-digit','year':'2-digit','hour':'2-digit','minute':'2-digit','second':'2-digit'});
+    const row = document.createElement('tr');
+    row.innerHTML = `<td>${f}</td><td>${s.N}</td><td>${s.dt}</td><td>${s.k}</td><td>${s.aciertos}</td><td>${s.totalCorr}</td><td>${s.pct}</td><td>${s.correct.join(', ')}</td><td>${s.dicho.map((n,i)=>n===s.correct[i]?n:`<span class=\"err\">${n}</span>`).join(', ')}</td>`;
+    tbl.appendChild(row);
+  });
+  document.getElementById('tableBox').style.display='block'; document.getElementById('graphBox').style.display='none';
+};
+
+// limpiar historial
+document.getElementById('clearBtn').onclick = () => { localStorage.removeItem('pasatSessions'); alert('Historial limpiado'); document.getElementById('graphBox').style.display='none'; document.getElementById('tableBox').style.display='none'; };
+</script>
+</body>
+</html>
