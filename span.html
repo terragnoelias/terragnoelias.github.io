@@ -1,0 +1,514 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Digit Span — Ejercicio de memoria</title>
+  <style>
+    :root{
+      --bg:#0f172a;          /* slate-900 */
+      --panel:#111827;       /* gray-900 */
+      --muted:#94a3b8;       /* slate-400 */
+      --text:#e5e7eb;        /* gray-200 */
+      --accent:#22c55e;      /* green-500 */
+      --accent-2:#60a5fa;    /* blue-400 */
+      --bad:#ef4444;         /* red-500 */
+      --good:#10b981;        /* emerald-500 */
+      --card:#0b1220;        /* deep */
+      --shadow: 0 10px 25px rgba(0,0,0,.45), 0 2px 8px rgba(0,0,0,.35);
+      --radius: 16px;
+    }
+    *{box-sizing:border-box}
+    body{
+      margin:0; font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Inter, "Helvetica Neue", Arial, Noto Sans, "Apple Color Emoji", "Segoe UI Emoji";
+      background: radial-gradient(1200px 800px at 70% -10%, rgba(96,165,250,.1), transparent 50%),
+                  radial-gradient(1000px 700px at -10% 0%, rgba(34,197,94,.08), transparent 40%),
+                  var(--bg);
+      color:var(--text);
+      min-height:100dvh; display:flex; align-items:center; justify-content:center; padding:24px;
+    }
+    .app{ width:min(1100px, 100%); display:grid; gap:16px; grid-template-columns: 1.1fr .9fr; }
+    @media (max-width: 980px){ .app{ grid-template-columns: 1fr; } }
+    .card{ background: linear-gradient(180deg, rgba(255,255,255,.03), rgba(255,255,255,.015)); border:1px solid rgba(255,255,255,.06); border-radius:var(--radius); box-shadow:var(--shadow); }
+    .panel{ padding:18px 18px 2px; }
+    h1{ font-size: clamp(22px, 2.4vw, 32px); margin:0 0 6px 0; letter-spacing:.2px }
+    .sub{ color:var(--muted); font-size:14px; margin-bottom:14px }
+
+    .controls{ display:grid; grid-template-columns: repeat(6, 1fr); gap:12px; }
+    .controls .field{ display:flex; flex-direction:column; gap:6px; }
+    label{ font-size:12px; color:var(--muted)}
+    input[type="number"], select{
+      background:var(--card); color:var(--text); border:1px solid rgba(148,163,184,.25); border-radius:10px; padding:10px 12px; outline:none;
+    }
+    input[type="checkbox"]{ transform: scale(1.1); }
+    .row{ display:flex; gap:10px; align-items:center }
+
+    .btns{ display:flex; gap:10px; flex-wrap:wrap; margin-top:10px }
+    button{ background:var(--accent-2); color:#06121f; border:0; border-radius:12px; padding:10px 14px; font-weight:700; cursor:pointer; box-shadow:0 6px 16px rgba(96,165,250,.25); transition: transform .06s ease; }
+    button:hover{ transform: translateY(-1px); }
+    button.secondary{ background:#1f2937; color:var(--text); box-shadow:none; border:1px solid rgba(148,163,184,.25); }
+    button.danger{ background:var(--bad); color:white; box-shadow:0 6px 16px rgba(239,68,68,.2); }
+    button.success{ background:var(--good); color:#04120c; }
+
+    .display{ display:grid; place-items:center; height:230px; border-top-left-radius:var(--radius); border-top-right-radius:var(--radius); overflow:hidden; position:relative; }
+    .digit{ font-weight:800; font-variant-numeric: tabular-nums; font-size: clamp(40px, 9vw, 120px); letter-spacing:.04em; text-shadow: 0 10px 30px rgba(0,0,0,.55); }
+    .mask{ position:absolute; inset:0; background:linear-gradient(180deg, rgba(15,23,42,.0), rgba(15,23,42,.25)); }
+
+    .io{ padding:16px; border-top:1px dashed rgba(148,163,184,.25); display:flex; gap:12px; align-items:center; flex-wrap:wrap }
+    .io input[type="text"]{ flex:1 1 260px; background:#0a1424; border:1px solid rgba(148,163,184,.25); border-radius:10px; color:var(--text); padding:12px 14px; font-size:16px; letter-spacing:.2em }
+
+    .status{ display:flex; gap:10px; flex-wrap:wrap; padding:12px 16px 18px; border-top:1px dashed rgba(148,163,184,.25); align-items:center }
+    .badge{ font-size:12px; padding:6px 10px; background:#0b1322; color:var(--muted); border:1px solid rgba(148,163,184,.25); border-radius:999px }
+    .badge.good{ color:#a7f3d0; border-color: rgba(16,185,129,.4); }
+    .badge.bad{ color:#fecaca; border-color: rgba(239,68,68,.35); }
+
+    .history{ padding:16px; }
+    .history h2{ margin:0 0 8px 0; font-size:18px }
+    table{ width:100%; border-collapse: collapse; }
+    th, td{ padding:10px 8px; text-align:left; border-bottom: 1px dashed rgba(148,163,184,.2); font-size:14px }
+    th{ color:var(--muted); font-weight:600 }
+    .actions{ display:flex; gap:8px; }
+    .muted{ color:var(--muted) }
+
+    .spark{ display:inline-block; width:95px; height:28px; vertical-align:middle }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <!-- IZQUIERDA: Ejercicio -->
+    <section class="card">
+      <div class="panel">
+        <h1>Digit Span — ejercicio</h1>
+        <div class="sub">Memoria de dígitos hacia <b>adelante</b> o en <b>orden inverso</b>, con control del tiempo y registro histórico local.</div>
+        <div class="controls">
+          <div class="field">
+            <label for="mode">Modo</label>
+            <select id="mode">
+              <option value="forward">Directo (adelante)</option>
+              <option value="backward">Invertido (atrás)</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="startLen">Longitud inicial</label>
+            <input id="startLen" type="number" min="2" value="3" />
+          </div>
+          <div class="field">
+            <label for="trialsPerLen">Intentos por longitud</label>
+            <input id="trialsPerLen" type="number" min="1" value="2" />
+          </div>
+          <div class="field">
+            <label for="durMs">Duración por dígito (ms)</label>
+            <input id="durMs" type="number" min="100" step="50" value="800" />
+          </div>
+          <div class="field">
+            <label for="isiMs">Intervalo entre dígitos (ms)</label>
+            <input id="isiMs" type="number" min="0" step="50" value="200" />
+          </div>
+          <div class="field">
+            <label for="prepMs">Cuenta regresiva inicial (ms)</label>
+            <input id="prepMs" type="number" min="0" step="250" value="1000" />
+          </div>
+        </div>
+        <div class="row" style="margin-top:8px">
+          <label class="row" style="gap:8px">
+            <input id="useVoice" type="checkbox" />
+            <span class="muted">Narración con voz (TTS)</span>
+          </label>
+        </div>
+        <div class="btns">
+          <button id="startBtn">Iniciar sesión</button>
+          <button id="replayBtn" class="secondary" disabled>Repetir secuencia</button>
+          <button id="giveUpBtn" class="secondary" disabled>Terminar sesión</button>
+        </div>
+      </div>
+
+      <div class="display">
+        <div id="digit" class="digit"></div>
+        <div class="mask"></div>
+      </div>
+
+      <div class="io">
+        <input id="answer" type="text" placeholder="Ingresá la secuencia aquí y presioná Enter" inputmode="numeric" pattern="[0-9]*" disabled />
+        <button id="submitBtn" class="success" disabled>Confirmar (Enter)</button>
+        <button id="clearBtn" class="secondary" disabled>Limpiar</button>
+      </div>
+
+      <div class="status" id="statusBar">
+        <span class="badge" id="lenBad">Longitud: —</span>
+        <span class="badge" id="trialBad">Intento: —</span>
+        <span class="badge" id="scoreBad">Aciertos: 0 · Errores: 0</span>
+        <span class="badge" id="maxBad">Mejor span: —</span>
+        <span class="badge" id="lastBad">Último: —</span>
+      </div>
+    </section>
+
+    <!-- DERECHA: Histórico -->
+    <section class="card">
+      <div class="history">
+        <h2>Histórico</h2>
+        <div class="btns" style="margin:6px 0 4px">
+          <button id="exportBtn" class="secondary">Exportar CSV</button>
+          <button id="resetBtn" class="danger">Borrar histórico</button>
+        </div>
+        <table>
+          <thead>
+            <tr>
+              <th>Fecha</th>
+              <th>Modo</th>
+              <th>Mejor span</th>
+              <th>Detalles</th>
+              <th>Gráfico</th>
+            </tr>
+          </thead>
+          <tbody id="histTbody"></tbody>
+        </table>
+      </div>
+    </section>
+  </div>
+
+  <script>
+    // ---------------- Utilidades ----------------
+    const $ = sel => document.querySelector(sel);
+    const digitEl = $('#digit');
+    const answerEl = $('#answer');
+    const startBtn = $('#startBtn');
+    const replayBtn = $('#replayBtn');
+    const giveUpBtn = $('#giveUpBtn');
+    const submitBtn = $('#submitBtn');
+    const clearBtn = $('#clearBtn');
+
+    const lenBad = $('#lenBad');
+    const trialBad = $('#trialBad');
+    const scoreBad = $('#scoreBad');
+    const maxBad = $('#maxBad');
+    const lastBad = $('#lastBad');
+
+    const histTbody = $('#histTbody');
+
+    const sleep = ms => new Promise(r => setTimeout(r, ms));
+    const nowIso = () => new Date().toISOString();
+
+    function randDigit(){ return Math.floor(Math.random() * 10); }
+
+    function speak(text){
+      const useVoice = $('#useVoice').checked;
+      if(!useVoice || !('speechSynthesis' in window)) return;
+      const u = new SpeechSynthesisUtterance(text.split('').join(' '));
+      u.lang = 'es-AR';
+      u.rate = 0.95; u.pitch = 1.0; u.volume = 1;
+      window.speechSynthesis.cancel();
+      window.speechSynthesis.speak(u);
+    }
+
+    // ---------------- Persistencia ----------------
+    const STORE_KEY = 'digitSpan.history.v1';
+    function loadHistory(){
+      try{ return JSON.parse(localStorage.getItem(STORE_KEY) || '[]'); }
+      catch{ return []; }
+    }
+    function saveHistory(list){ localStorage.setItem(STORE_KEY, JSON.stringify(list)); }
+
+    function addToHistory(session){
+      const list = loadHistory();
+      list.unshift(session);
+      saveHistory(list);
+      renderHistory();
+    }
+
+    function exportCSV(){
+      const list = loadHistory();
+      const rows = [['fecha','modo','mejor_span','dur_ms','isi_ms','start_len','trials_per_len','total_aciertos','total_errores','detalles_json']];
+      for(const s of list){
+        rows.push([
+          s.fecha,
+          s.modo,
+          s.mejorSpan,
+          s.config.durMs,
+          s.config.isiMs,
+          s.config.startLen,
+          s.config.trialsPerLen,
+          s.totals.aciertos,
+          s.totals.errores,
+          JSON.stringify(s.trials)
+        ]);
+      }
+      const csv = rows.map(r => r.map(x => '"' + String(x).replaceAll('"', '""') + '"').join(',')).join('\n');
+      const blob = new Blob([csv], {type:'text/csv;charset=utf-8;'});
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = 'digit_span_historial.csv'; a.click();
+      URL.revokeObjectURL(url);
+    }
+
+    function tinySpark(values){
+      // Dibuja un sparkline simple en un canvas.
+      const w=95, h=28, p=4;
+      const c = document.createElement('canvas');
+      c.width = w; c.height = h; c.className = 'spark';
+      const ctx = c.getContext('2d');
+      ctx.clearRect(0,0,w,h);
+      ctx.globalAlpha = .95;
+      ctx.lineWidth = 2;
+      ctx.strokeStyle = 'rgba(96,165,250,.95)';
+      const min = Math.min(...values), max = Math.max(...values);
+      const xs = values.map((_,i)=> p + i*( (w-2*p) / Math.max(1,(values.length-1))));
+      const ys = values.map(v => h - p - ( (v-min) / Math.max(1,(max-min)) )*(h-2*p));
+      ctx.beginPath();
+      xs.forEach((x,i)=>{ const y=ys[i]; i?ctx.lineTo(x,y):ctx.moveTo(x,y); });
+      ctx.stroke();
+      // puntos
+      ctx.fillStyle = 'rgba(34,197,94,.9)';
+      xs.forEach((x,i)=>{ ctx.beginPath(); ctx.arc(x,ys[i],2.5,0,Math.PI*2); ctx.fill(); });
+      return c;
+    }
+
+    function renderHistory(){
+      const list = loadHistory();
+      histTbody.innerHTML = '';
+      if(list.length === 0){
+        const tr = document.createElement('tr');
+        tr.innerHTML = `<td colspan="5" class="muted">No hay sesiones aún. Empezá con "Iniciar sesión".</td>`;
+        histTbody.appendChild(tr);
+        return;
+      }
+      list.forEach((s,idx)=>{
+        const tr = document.createElement('tr');
+        const spanSeries = s.trials.map(t => t.len * (t.ok?1:-1));
+        tr.innerHTML = `
+          <td>${new Date(s.fecha).toLocaleString()}</td>
+          <td>${s.modo === 'forward' ? 'Directo' : 'Invertido'}</td>
+          <td><b>${s.mejorSpan}</b> <span class="muted">(len máx. recordada)</span></td>
+          <td class="muted">${s.totals.aciertos}✔︎ / ${s.totals.errores}✘ · ${s.config.durMs}ms · ${s.config.isiMs}ms</td>
+          <td></td>
+        `;
+        const sparkCell = tr.children[4];
+        sparkCell.appendChild(tinySpark(spanSeries.length?spanSeries:[0]));
+        tr.style.cursor = 'pointer';
+        tr.title = 'Ver detalles de la sesión';
+        tr.addEventListener('click', ()=> showSessionDetails(s));
+        histTbody.appendChild(tr);
+      });
+    }
+
+    function showSessionDetails(s){
+      const lines = [];
+      lines.push(`Fecha: ${new Date(s.fecha).toLocaleString()}`);
+      lines.push(`Modo: ${s.modo==='forward'?'Directo':'Invertido'}`);
+      lines.push(`Mejor span: ${s.mejorSpan}`);
+      lines.push(`Config: duración=${s.config.durMs}ms, ISI=${s.config.isiMs}ms, inicio=${s.config.startLen}, intentos/len=${s.config.trialsPerLen}`);
+      lines.push('—');
+      s.trials.forEach((t,i)=>{
+        lines.push(`#${i+1} len=${t.len} · mostrado=${t.seq} · respuesta=${t.ans||'—'} · ${t.ok?'✔️ bien':'❌ mal'}`);
+      });
+      alert(lines.join('\n'));
+    }
+
+    // ---------------- Lógica del test ----------------
+    let state = null; // se reinicia cada sesión
+
+    function getConfig(){
+      return {
+        mode: $('#mode').value,            // 'forward' | 'backward'
+        startLen: +$('#startLen').value || 3,
+        trialsPerLen: +$('#trialsPerLen').value || 2,
+        durMs: +$('#durMs').value || 800,
+        isiMs: +$('#isiMs').value || 200,
+        prepMs: +$('#prepMs').value || 0,
+      };
+    }
+
+    function resetUIForSession(){
+      digitEl.textContent = '';
+      answerEl.value = '';
+      answerEl.disabled = true;
+      submitBtn.disabled = true;
+      clearBtn.disabled = true;
+      replayBtn.disabled = true;
+      giveUpBtn.disabled = false;
+    }
+
+    function updateBadges(){
+      if(!state){
+        lenBad.textContent = 'Longitud: —';
+        trialBad.textContent = 'Intento: —';
+        scoreBad.textContent = `Aciertos: 0 · Errores: 0`;
+        maxBad.textContent = `Mejor span: —`;
+        lastBad.textContent = `Último: —`;
+        return;
+      }
+      lenBad.textContent = `Longitud: ${state.currentLen}`;
+      trialBad.textContent = `Intento: ${state.trialAtLen+1}/${state.cfg.trialsPerLen}`;
+      scoreBad.textContent = `Aciertos: ${state.totals.aciertos} · Errores: ${state.totals.errores}`;
+      maxBad.textContent = `Mejor span: ${state.bestSpan || '—'}`;
+      const last = state.trials[state.trials.length-1];
+      lastBad.textContent = last ? `Último: ${last.ok?'✔️':'❌'} len ${last.len}` : 'Último: —';
+      lastBad.className = 'badge ' + (last? (last.ok?'good':'bad') : '');
+    }
+
+    function newSequence(len){
+      const arr = Array.from({length: len}, randDigit);
+      return arr.join('');
+    }
+
+    async function showSequence(seq){
+      // Cuenta regresiva si corresponde
+      if(state.cfg.prepMs > 0){
+        const steps = Math.max(1, Math.floor(state.cfg.prepMs/500));
+        for(let i=steps; i>0; i--){
+          digitEl.textContent = i;
+          await sleep(500);
+        }
+      }
+
+      answerEl.value = '';
+      answerEl.disabled = true;
+      submitBtn.disabled = true;
+      clearBtn.disabled = true;
+      replayBtn.disabled = true;
+
+      for(const ch of seq){
+        // pantalla en blanco durante el ISI
+        digitEl.textContent = '';
+        await sleep(state.cfg.isiMs);
+        // mostrar dígito
+        digitEl.textContent = ch;
+        speak(ch);
+        await sleep(state.cfg.durMs);
+        // ocultar dígito
+        digitEl.textContent = '';
+      }
+
+      // habilitar respuesta sin símbolo extra
+      digitEl.textContent = '';
+      answerEl.disabled = false;
+      submitBtn.disabled = false;
+      clearBtn.disabled = false;
+      replayBtn.disabled = false;
+      answerEl.focus();
+    }
+
+    function expectedFrom(seq){
+      return state.cfg.mode === 'forward' ? seq : seq.split('').reverse().join('');
+    }
+
+    function recordTrial(ok, ans){
+      state.totals[ ok ? 'aciertos' : 'errores' ]++;
+      state.trials.push({ len: state.currentLen, seq: state.currentSeq, ans, ok });
+      if(ok) state.bestSpan = Math.max(state.bestSpan, state.currentLen);
+      updateBadges();
+    }
+
+    function decideNext(ok){
+      // Conteo de intentos/errores por longitud
+      if(ok){
+        state.winsAtLen++;
+      } else {
+        state.failsAtLen++;
+      }
+      const maxTries = state.cfg.trialsPerLen;
+      const doneAtLen = (state.winsAtLen + state.failsAtLen) >= maxTries || state.winsAtLen >= 1 && maxTries===1;
+
+      if(doneAtLen){
+        // Regla simple: si hubo al menos un acierto en esta longitud, sube; si 0, termina.
+        if(state.winsAtLen >= 1){
+          state.currentLen++;
+          state.trialAtLen = 0;
+          state.winsAtLen = 0; state.failsAtLen = 0;
+          return true; // continuar
+        } else {
+          return false; // terminar
+        }
+      } else {
+        state.trialAtLen++;
+        return true; // continuar otro intento misma longitud
+      }
+    }
+
+    async function nextRound(replay=false){
+      if(!state) return;
+      if(!replay){
+        // generar nueva secuencia solo si no es repetición
+        state.currentSeq = newSequence(state.currentLen);
+      }
+      updateBadges();
+      await showSequence(state.currentSeq);
+    }
+
+    function endSession(reason='finalizado'){
+      if(!state) return;
+      const session = {
+        fecha: nowIso(),
+        modo: state.cfg.mode,
+        mejorSpan: state.bestSpan || state.cfg.startLen,
+        totals: {...state.totals},
+        trials: state.trials.slice(),
+        config: { durMs: state.cfg.durMs, isiMs: state.cfg.isiMs, startLen: state.cfg.startLen, trialsPerLen: state.cfg.trialsPerLen }
+      };
+      addToHistory(session);
+      // reset
+      state = null;
+      digitEl.textContent = '';
+      startBtn.disabled = false;
+      replayBtn.disabled = true;
+      giveUpBtn.disabled = true;
+      answerEl.disabled = true; submitBtn.disabled = true; clearBtn.disabled = true;
+      updateBadges();
+      alert(`Sesión ${reason}. Mejor span: ${session.mejorSpan}. Aciertos: ${session.totals.aciertos}, Errores: ${session.totals.errores}`);
+    }
+
+    // ---------------- Eventos UI ----------------
+    startBtn.addEventListener('click', async ()=>{
+      const cfg = getConfig();
+      state = {
+        cfg,
+        currentLen: Math.max(2, cfg.startLen|0),
+        trialAtLen: 0,
+        winsAtLen: 0,
+        failsAtLen: 0,
+        totals: { aciertos:0, errores:0 },
+        bestSpan: 0,
+        trials: [],
+        currentSeq: ''
+      };
+      resetUIForSession();
+      startBtn.disabled = true;
+      await nextRound(false);
+    });
+
+    replayBtn.addEventListener('click', ()=> nextRound(true));
+
+    giveUpBtn.addEventListener('click', ()=> endSession('cancelada'));
+
+    clearBtn.addEventListener('click', ()=>{ answerEl.value = ''; answerEl.focus(); });
+
+    submitBtn.addEventListener('click', onSubmit);
+    answerEl.addEventListener('keydown', (e)=>{
+      if(e.key==='Enter') onSubmit();
+    });
+
+    function onSubmit(){
+      if(!state) return;
+      const ans = (answerEl.value||'').replace(/\s+/g,'');
+      const expected = expectedFrom(state.currentSeq);
+      const ok = ans === expected;
+      recordTrial(ok, ans);
+      if(!decideNext(ok)){
+        endSession('finalizada');
+      } else {
+        nextRound(false);
+      }
+    }
+
+    $('#exportBtn').addEventListener('click', exportCSV);
+    $('#resetBtn').addEventListener('click', ()=>{
+      if(confirm('¿Borrar todo el histórico? Esta acción no se puede deshacer.')){
+        saveHistory([]); renderHistory();
+      }
+    });
+
+    // Inicializar
+    renderHistory();
+    updateBadges();
+  </script>
+</body>
+</html>
