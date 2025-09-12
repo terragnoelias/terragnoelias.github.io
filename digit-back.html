@@ -322,7 +322,7 @@
       let targetRate = parseFloat(targetRateEl.value);
       if(isNaN(targetRate)) targetRate = 0.25;
       targetRate = clamp(targetRate, 0, 1);
-      let usedRate = blind ? (Math.random() * (0.35 - 0.15) + 0.15) : targetRate;
+      let usedRate = blind ? (Math.random() * (0.40 - 0.20) + 0.20) : targetRate;
 
       const digitSet = parseDigitSet(digitSetEl.value);
 
