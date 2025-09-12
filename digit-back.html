@@ -1,0 +1,475 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+  <title>Digit N-Back – configurable (Mobile + Desktop)</title>
+  <style>
+    :root { --bg:#0f172a; --panel:#111827; --text:#e5e7eb; --muted:#9ca3af; --accent:#22d3ee; --good:#22c55e; --bad:#ef4444; --warn:#f59e0b; }
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{margin:0; font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Inter,Arial; background:var(--bg); color:var(--text)}
+    h1{font-size:clamp(20px,3vw,28px); margin:16px 0}
+    .wrap{max-width:1100px; margin:0 auto; padding:16px; padding-bottom:88px;}
+    .grid{display:grid; gap:14px; grid-template-columns: 1fr;}
+    @media (min-width: 960px){ .grid{grid-template-columns: 360px 1fr;} }
+    .card{background:var(--panel); border:1px solid #1f2937; border-radius:14px; padding:14px; box-shadow:0 6px 24px rgba(0,0,0,.25)}
+    label{display:block; font-size:14px; color:var(--muted); margin-bottom:4px}
+    input, select{width:100%; padding:10px 12px; border-radius:10px; border:1px solid #374151; background:#0b1022; color:var(--text)}
+    input[type="number"]::-webkit-outer-spin-button,input[type="number"]::-webkit-inner-spin-button{appearance:none;margin:0}
+    .row{display:grid; grid-template-columns:1fr 1fr; gap:10px}
+    .btn{display:inline-flex; align-items:center; justify-content:center; gap:8px; padding:12px 16px; border-radius:12px; border:1px solid #374151; background:#0b1022; color:var(--text); cursor:pointer; -webkit-tap-highlight-color: transparent;}
+    .btn.primary{background:linear-gradient(135deg,#0891b2,#06b6d4); border-color:transparent}
+    .btn.ghost{background:transparent}
+    .btn:disabled{opacity:.5; cursor:not-allowed}
+    .btn.big{font-size:18px; padding:16px 20px; border-radius:16px}
+    .display{display:flex; align-items:center; justify-content:center; height: clamp(220px, 40vh, 380px); border-radius:16px; background:#020617; border:1px dashed #334155; position:relative; overflow:hidden; touch-action:manipulation}
+    .digit{font-variant-numeric:tabular-nums; font-size:min(22vw,160px); line-height:1; letter-spacing:.02em; user-select:none; -webkit-user-select:none}
+    .flash{position:absolute; inset:0; background:radial-gradient(ellipse at center, rgba(34,211,238,.15), transparent 60%); opacity:0; transition:.15s opacity}
+    .flash.on{opacity:1}
+    .meta{display:flex; flex-wrap:wrap; gap:8px; font-size:13px; color:var(--muted)}
+    .meta b{color:var(--text)}
+    .bar{height:8px; border-radius:999px; background:#111827; overflow:hidden; border:1px solid #334155}
+    .bar>span{display:block; height:100%; width:0%; background:linear-gradient(90deg,#22d3ee,#60a5fa); transition:width .2s}
+    table{width:100%; border-collapse:collapse; font-size:14px}
+    th,td{padding:8px 10px; border-bottom:1px solid #1f2937; text-align:left}
+    th{color:#cbd5e1; font-weight:600}
+    .kpi{display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:10px}
+    .pill{display:inline-flex; align-items:center; gap:8px; padding:6px 10px; border-radius:999px; font-size:12px; border:1px solid #334155}
+    .good{color:var(--good)} .bad{color:var(--bad)} .warn{color:var(--warn)}
+    .hint{font-size:13px; color:var(--muted)}
+    .small{font-size:12px; color:var(--muted)}
+    .center{text-align:center}
+    .hide{display:none}
+
+    .tapbar{position:fixed; left:0; right:0; bottom:0; backdrop-filter: blur(6px); background:rgba(2,6,23,.75); border-top:1px solid #1f2937; padding:12px 16px; display:flex; gap:10px; z-index:50}
+    .tapbar .btn{flex:1}
+    @media (min-width: 960px){ .tapbar{display:none} }
+    @media (max-width: 959px){
+      .grid{display:flex; flex-direction:column}
+      .card.config{order:2}
+      .card.task{order:1}
+    }
+
+    .errorbar{position:fixed;left:8px;right:8px;bottom:76px;background:#7f1d1d;color:#fecaca;border:1px solid #ef4444;padding:8px 10px;border-radius:10px;display:none;z-index:60;font-size:12px}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>Digit N-Back – configurable (Mobile + Desktop)</h1>
+    <div class="grid">
+      <div class="card config">
+        <div class="row">
+          <div>
+            <label for="nBack">N (retroceso)</label>
+            <input id="nBack" type="number" min="1" max="10" value="2" />
+          </div>
+          <div>
+            <label for="trials">Cantidad de estímulos</label>
+            <input id="trials" type="number" min="10" max="500" value="60" />
+          </div>
+        </div>
+        <div class="row">
+          <div>
+            <label for="soa">Ritmo por estímulo / SOA (ms)</label>
+            <input id="soa" type="number" min="150" step="50" value="2000" />
+          </div>
+          <div>
+            <label for="vis">Visibilidad del dígito (ms)</label>
+            <input id="vis" type="number" min="20" step="10" value="500" />
+          </div>
+        </div>
+        <div class="row">
+          <div id="targetRateWrap">
+            <label for="targetRate">Proporción de objetivos (0–1)</label>
+            <input id="targetRate" type="number" min="0" max="1" step="0.05" value="0.25" />
+          </div>
+          <div>
+            <label for="digitSet">Rango de dígitos (ej. 0-9 o 2,3,5,7)</label>
+            <input id="digitSet" type="text" value="0-9" />
+          </div>
+        </div>
+        <div style="margin-top:6px">
+          <label><input id="blindTargets" type="checkbox" /> Ocultar tasa y conteo de objetivos (usar objetivo aleatorio)</label>
+          <div class="small">Si está activado, la tasa exacta no se muestra ni se usa la ingresada; se elige aleatoriamente por sesión.</div>
+        </div>
+        <div class="row" style="margin-top:8px">
+          <button id="startBtn" class="btn primary" onclick="window.__start && window.__start()">▶️ Iniciar</button>
+          <button id="stopBtn" class="btn ghost" disabled>⏹️ Detener</button>
+        </div>
+        <p class="hint" style="margin-top:10px">Regla: toca la pantalla <b>o</b> presioná <b>Enter</b> solo cuando el dígito actual <b>coincida</b> con el de <b>N</b> posiciones atrás. Si no coincide, no hagas nada.</p>
+        <p class="small">Valores por defecto ~estándar: <b>N=2</b>, <b>SOA=2000ms</b>, <b>Visibilidad=500ms</b>, <b>60 estímulos</b>, <b>25% objetivos</b>. Podés modificarlos.</p>
+      </div>
+
+      <div class="card task">
+        <div class="display" id="display" title="Toca para marcar coincidencia">
+          <div class="flash" id="flash"></div>
+          <div class="digit" id="digit">—</div>
+        </div>
+        <div class="meta" style="margin-top:10px">
+          <span>Estado: <b id="status">Listo</b></span>
+          <span>• Ensayo <b id="trialIdx">0</b>/<b id="trialTotal">0</b></span>
+          <span id="targetsMeta">• Objetivos: <b id="targetCount">0</b></span>
+          <span>• Acción: <b>Tocar</b> o <b>Enter</b> para indicar coincidencia</span>
+        </div>
+        <div class="bar" style="margin-top:8px"><span id="progress"></span></div>
+        <div class="kpi" style="margin-top:12px">
+          <div class="pill"><span>✅ Aciertos: <b id="hits">0</b></span></div>
+          <div class="pill"><span>❌ Falsas alarmas: <b id="fas">0</b></span></div>
+          <div class="pill"><span>🟡 Omisiones: <b id="miss">0</b></span></div>
+          <div class="pill"><span>⏱️ RT medio (ms): <b id="rtMean">—</b></span></div>
+        </div>
+        <div style="margin-top:12px">
+          <button id="tapBtn" class="btn primary big" style="width:100%">✅ ¡COINCIDE!</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="card" style="margin-top:14px">
+      <h2 style="margin:6px 0 12px">Resultados de la sesión</h2>
+      <div id="sessionSummary" class="small">Aún no hay resultados.</div>
+      <div style="margin-top:10px; display:flex; gap:10px; flex-wrap:wrap">
+        <button id="exportCsv" class="btn" disabled>⬇️ Exportar CSV (sesión)</button>
+        <button id="clearHistory" class="btn ghost">🧹 Borrar historial</button>
+      </div>
+    </div>
+
+    <div class="card" style="margin-top:14px">
+      <h2 style="margin:6px 0 12px">Historial (localStorage)</h2>
+      <div class="small" style="margin-bottom:8px">Se guarda automáticamente el resumen de cada sesión en tu navegador.</div>
+      <div id="history"></div>
+    </div>
+  </div>
+
+  <div class="errorbar" id="errorbar"></div>
+  <div class="tapbar" id="tapbar">
+    <button id="tapBarBtn" class="btn primary big">✅ ¡COINCIDE!</button>
+  </div>
+
+<script>
+(function(){
+  const el = id => document.getElementById(id);
+  const showErr = (msg)=>{ try{ const eb=el('errorbar'); eb.textContent=String(msg); eb.style.display='block'; setTimeout(()=>{eb.style.display='none'}, 6000);}catch(_){}; console.error(msg); };
+  window.onerror = function(message, source, lineno, colno, error){ showErr(message + ' @' + lineno + ':' + colno); };
+
+  const nBackEl = el('nBack');
+  const trialsEl = el('trials');
+  const soaEl = el('soa');
+  const visEl = el('vis');
+  const targetRateEl = el('targetRate');
+  const targetRateWrap = el('targetRateWrap');
+  const digitSetEl = el('digitSet');
+  const blindEl = el('blindTargets');
+  const startBtn = el('startBtn');
+  const stopBtn = el('stopBtn');
+  const digitDom = el('digit');
+  const statusDom = el('status');
+  const trialIdxDom = el('trialIdx');
+  const trialTotalDom = el('trialTotal');
+  const targetsMeta = el('targetsMeta');
+  const targetCountDom = el('targetCount');
+  const progress = el('progress');
+  const hitsDom = el('hits');
+  const fasDom = el('fas');
+  const missDom = el('miss');
+  const rtMeanDom = el('rtMean');
+  const flash = el('flash');
+  const sessionSummary = el('sessionSummary');
+  const historyDiv = el('history');
+  const exportBtn = el('exportCsv');
+  const clearBtn = el('clearHistory');
+  const display = el('display');
+  const tapBtn = el('tapBtn');
+  const tapBarBtn = el('tapBarBtn');
+
+  const LS_KEY = 'digit_nback_results_v3_1_mobile_full';
+
+  let running = false;
+  let scheduleTimer = null;
+  let hideTimer = null;
+  let startTime = 0;
+  let respondedThisTrial = false;
+
+  let cfg = {};
+  let seq = [];
+  let isTarget = [];
+  let rtHits = [];
+  let stats = {hits:0, fas:0, miss:0, targets:0};
+  let trialIndex = 0;
+  let lastSessionTrials = [];
+  let responses = [];
+
+  function parseDigitSet(text){
+    text = (text||'').trim();
+    if (/^\d\s*-\s*\d$/.test(text)){
+      const parts = text.split('-');
+      const a = parseInt(parts[0].trim(),10);
+      const b = parseInt(parts[1].trim(),10);
+      if (isFinite(a) && isFinite(b) && a<=b){ const out=[]; for(let x=a;x<=b;x++) out.push(x); return out; }
+    }
+    const parts = text.split(',').map(s=>s.trim()).filter(Boolean);
+    const out=[]; for(const p of parts){ const v=parseInt(p,10); if(isFinite(v)) out.push(v); }
+    return out.length? out : [0,1,2,3,4,5,6,7,8,9];
+  }
+  function randint(arr){ return arr[Math.floor(Math.random()*arr.length)]; }
+  function clamp(v,min,max){ return Math.max(min, Math.min(max, v)); }
+
+  function genSequence(trials, n, targetRate, digitSet){
+    const s = new Array(trials).fill(0);
+    const t = new Array(trials).fill(false);
+    for(let i=0;i<n;i++) s[i] = randint(digitSet);
+    for(let i=n;i<trials;i++){
+      const makeTarget = Math.random() < targetRate;
+      if(makeTarget){ s[i] = s[i-n]; t[i] = true; }
+      else { let d; do{ d = randint(digitSet); } while(d === s[i-n]); s[i] = d; }
+    }
+    return {seq:s, isTarget:t};
+  }
+
+  function resetStats(){ stats={hits:0, fas:0, miss:0, targets:0}; rtHits=[]; trialIndex=0; respondedThisTrial=false; }
+  function resetResponses(trials){ responses = new Array(trials).fill(null).map((_,i)=>({trial:i+1, digit:null, target:false, responded:false, rt:'', outcome:'CR'})); }
+
+  function setRunningUI(on){
+    running = on;
+    startBtn.disabled = on; stopBtn.disabled = !on;
+    statusDom.textContent = on? 'En curso' : 'Listo';
+    if(!on){ digitDom.textContent = '—'; progress.style.width='0%'; flash.classList.remove('on'); }
+  }
+
+  function updateKPIs(){
+    try{
+      hitsDom.textContent = stats.hits;
+      fasDom.textContent = stats.fas;
+      missDom.textContent = stats.miss;
+      trialIdxDom.textContent = Math.min(trialIndex, cfg.trials||0);
+      trialTotalDom.textContent = cfg.trials || 0;
+      const pct = cfg.trials ? (trialIndex/cfg.trials)*100 : 0; 
+      progress.style.width = pct+"%";
+      const mean = rtHits.length? Math.round(rtHits.reduce((a,b)=>a+b,0)/rtHits.length) : '—';
+      rtMeanDom.textContent = mean;
+      targetCountDom.textContent = cfg.blind? '—' : stats.targets;
+    }catch(e){ showErr('updateKPIs: '+e.message); }
+  }
+
+  function presentTrial(){
+    try{
+      if(!running) return;
+      if(trialIndex >= (cfg.trials||0)){ finish(); return; }
+      respondedThisTrial = false;
+
+      const d = seq[trialIndex];
+      digitDom.textContent = d;
+      flash.classList.add('on');
+      startTime = performance.now();
+
+      const tgt = !!isTarget[trialIndex];
+      responses[trialIndex].digit = d;
+      responses[trialIndex].target = tgt;
+      responses[trialIndex].responded = false;
+      responses[trialIndex].rt = '';
+      responses[trialIndex].outcome = tgt ? 'Miss' : 'CR';
+
+      if(tgt) stats.targets++;
+      updateKPIs();
+
+      clearTimeout(hideTimer);
+      hideTimer = setTimeout(()=>{ flash.classList.remove('on'); digitDom.textContent=''; }, cfg.visibility);
+
+      clearTimeout(scheduleTimer);
+      scheduleTimer = setTimeout(()=>{ 
+        if(tgt && !respondedThisTrial){ stats.miss++; responses[trialIndex].outcome='Miss'; updateKPIs(); }
+        trialIndex++; presentTrial();
+
+      // scroll automático al panel de tarea
+      setTimeout(()=>{
+        document.getElementById('display').scrollIntoView({behavior:'smooth', block:'center'});
+      }, 100); 
+      }, cfg.soa);
+    }catch(e){ showErr('present: '+e.message); }
+  }
+
+  function registerResponse(){
+    try{
+      if(!running) return;
+      if(trialIndex >= (cfg.trials||0)) return;
+      if(respondedThisTrial) return;
+      respondedThisTrial = true;
+
+      const rt = Math.max(0, Math.round(performance.now() - startTime));
+      const tgt = !!isTarget[trialIndex];
+      responses[trialIndex].responded = true;
+      responses[trialIndex].rt = rt;
+
+      if(tgt){ stats.hits++; rtHits.push(rt); responses[trialIndex].outcome='Hit'; }
+      else { stats.fas++; responses[trialIndex].outcome='FA'; }
+      updateKPIs();
+
+      flash.classList.add('on');
+      setTimeout(()=>flash.classList.remove('on'), 120);
+    }catch(e){ showErr('register: '+e.message); }
+  }
+
+  function onKey(e){ if(e.key === 'Enter') registerResponse(); }
+
+  function start(){
+    try{
+      const n = clamp(parseInt(nBackEl.value,10)||2, 1, 10);
+      const trials = clamp(parseInt(trialsEl.value,10)||60, 10, 500);
+      const soa = Math.max(150, parseInt(soaEl.value,10)||2000);
+      const vis = clamp(parseInt(visEl.value,10)||500, 20, soa);
+      const blind = !!blindEl.checked;
+
+      let targetRate = parseFloat(targetRateEl.value);
+      if(isNaN(targetRate)) targetRate = 0.25;
+      targetRate = clamp(targetRate, 0, 1);
+      let usedRate = blind ? (Math.random() * (0.35 - 0.15) + 0.15) : targetRate;
+
+      const digitSet = parseDigitSet(digitSetEl.value);
+
+      cfg = { n, trials, soa, visibility:vis, targetRate:targetRate, digitSet, blind, targetRateUsed: usedRate };
+
+      const g = genSequence(trials, n, usedRate, digitSet);
+      seq = g.seq; isTarget = g.isTarget;
+      resetStats();
+      resetResponses(trials);
+      setRunningUI(true);
+
+      targetsMeta.classList.toggle('hide', blind);
+      targetRateWrap.classList.toggle('hide', blind);
+
+      presentTrial();
+
+      // scroll automático al panel de tarea
+      setTimeout(()=>{
+        document.getElementById('display').scrollIntoView({behavior:'smooth', block:'center'});
+      }, 100);
+    }catch(e){ showErr('start: '+e.message); }
+  }
+
+  function stop(){ finish(true); }
+
+  function finish(stopped=false){
+    try{
+      setRunningUI(false);
+      clearTimeout(scheduleTimer); clearTimeout(hideTimer);
+
+      const correctRejections = responses.filter(r=>!r.target && r.outcome==='CR').length;
+      const hits = responses.filter(r=>r.outcome==='Hit').length;
+      const fas = responses.filter(r=>r.outcome==='FA').length;
+      const miss = responses.filter(r=>r.outcome==='Miss').length;
+      const targets = responses.filter(r=>r.target).length;
+
+      stats.hits = hits; stats.fas = fas; stats.miss = miss; stats.targets = targets;
+      updateKPIs();
+
+      const accuracy = (cfg.trials||0) ? ((hits + correctRejections) / cfg.trials) * 100 : 0;
+      const rtMean = rtHits.length? Math.round(rtHits.reduce((a,b)=>a+b,0)/rtHits.length): null;
+
+      const summary = {
+        ts: new Date().toISOString(), n: cfg.n, trials: cfg.trials, soa: cfg.soa, visibility: cfg.visibility,
+        targetRateConfigured: cfg.targetRate, targetRateUsed: +(cfg.targetRateUsed||0).toFixed? cfg.targetRateUsed.toFixed(3): cfg.targetRateUsed, blind: cfg.blind,
+        digitSet: (cfg.digitSet||[]).join(','), hits, misses: miss, falseAlarms: fas,
+        correctRejections, targets, accuracy: +accuracy.toFixed(2), rtMean
+      };
+
+      renderSessionSummary(summary);
+      saveHistory(summary);
+      renderHistory();
+
+      lastSessionTrials = responses.map((r,i)=>({trial:r.trial, digit: seq[i], target:+r.target, responded:+r.responded, rt:r.rt, outcome:r.outcome}));
+      exportBtn.disabled = !lastSessionTrials.length;
+
+      targetsMeta.classList.remove('hide'); 
+      targetRateWrap.classList.remove('hide');
+    }catch(e){ showErr('finish: '+e.message); }
+  }
+
+  function renderSessionSummary(s){
+    try{
+      sessionSummary.innerHTML = `
+        <div class="meta">
+          <span>Fecha: <b>${new Date(s.ts).toLocaleString()}</b></span>
+          <span>• N: <b>${s.n}</b></span>
+          <span>• Ensayos: <b>${s.trials}</b></span>
+          <span>• SOA: <b>${s.soa} ms</b></span>
+          <span>• Visibilidad: <b>${s.visibility} ms</b></span>
+          <span>• Objetivos: <b>${s.targets}</b> (~${s.trials?Math.round((s.targets/s.trials)*100):0}%)</span>
+          <span>• Accuracy: <b>${(s.accuracy||0).toFixed(2)}%</b></span>
+          <span>• RT medio (aciertos): <b>${s.rtMean??'—'} ms</b></span>
+          <span>• Modo ciego: <b>${s.blind? 'Sí':'No'}</b></span>
+          <span>• Tasa usada: <b>${s.targetRateUsed}</b></span>
+        </div>`;
+    }catch(e){ showErr('renderSummary: '+e.message); }
+  }
+
+  function loadHistory(){ try{ return JSON.parse(localStorage.getItem(LS_KEY)||'[]'); }catch(e){ return []; } }
+  function saveHistory(obj){ const arr = loadHistory(); arr.unshift(obj); localStorage.setItem(LS_KEY, JSON.stringify(arr)); }
+  function clearHistory(){ localStorage.removeItem(LS_KEY); renderHistory(); }
+
+  function renderHistory(){
+    const rows = loadHistory();
+    if(!rows.length){ historyDiv.innerHTML = '<div class="small">Sin sesiones guardadas.</div>'; return; }
+    const html = [`<table><thead><tr>
+      <th>Fecha</th><th>N</th><th>Ensayos</th><th>SOA</th><th>Vis</th><th>Targets</th><th>Hits</th><th>FA</th><th>Miss</th><th>Acc</th><th>RT medio</th><th>Ciego</th>
+    </tr></thead><tbody>`];
+    for(const r of rows){
+      html.push(`<tr>
+        <td>${new Date(r.ts).toLocaleString()}</td>
+        <td>${r.n}</td>
+        <td>${r.trials}</td>
+        <td>${r.soa}</td>
+        <td>${r.visibility}</td>
+        <td>${r.targets} (~${r.trials?Math.round((r.targets/r.trials)*100):0}%)</td>
+        <td>${r.hits}</td>
+        <td>${r.falseAlarms}</td>
+        <td>${r.misses}</td>
+        <td>${(r.accuracy||0).toFixed(2)}%</td>
+        <td>${r.rtMean??'—'}</td>
+        <td>${r.blind? 'Sí':'No'}</td>
+      </tr>`);
+    }
+    html.push('</tbody></table>');
+    historyDiv.innerHTML = html.join('');
+  }
+
+  function toCSV(rows){ if(!rows.length) return ''; const cols = Object.keys(rows[0]); const esc = v => (v==null? '': String(v).replace(/\"/g,'\"\"')); const head = cols.map(c=>'"'+esc(c)+'"').join(','); const body = rows.map(r=> cols.map(c=>'"'+esc(r[c])+'"').join(',')).join('\n'); return head+'\n'+body; }
+  function download(filename, text){ const blob = new Blob([text], {type:'text/csv;charset=utf-8;'}); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = filename; a.style.display='none'; document.body.appendChild(a); a.click(); setTimeout(()=>{ URL.revokeObjectURL(url); a.remove(); }, 1000); }
+  function exportCSV(){
+    const rows = loadHistory(); if(!rows.length){ alert('No hay historial para exportar.'); return; }
+    const s = rows[0];
+    const metaLine = '# Digit N-Back; fecha='+new Date(s.ts).toLocaleString()+'; N='+s.n+'; trials='+s.trials+'; SOA='+s.soa+'ms; Vis='+s.visibility+'ms; targets='+s.targets+'; hits='+s.hits+'; FA='+s.falseAlarms+'; miss='+s.misses+'; acc='+s.accuracy+'%\n';
+    const csvTrials = toCSV(lastSessionTrials);
+    download('digit-nback_'+s.n+'back_'+s.trials+'trials.csv', metaLine + csvTrials);
+  }
+
+  function toggleBlindUI(){
+    targetRateWrap.classList.toggle('hide', blindEl.checked);
+    targetsMeta.classList.toggle('hide', blindEl.checked);
+  }
+
+  function init(){
+    try{
+      renderHistory();
+      document.addEventListener('keydown', onKey);
+      startBtn.addEventListener('click', start);
+      stopBtn.addEventListener('click', stop);
+      exportBtn.addEventListener('click', exportCSV);
+      clearBtn.addEventListener('click', ()=>{ if(confirm('¿Borrar todo el historial guardado en este navegador?')) clearHistory(); });
+      blindEl.addEventListener('change', toggleBlindUI);
+      toggleBlindUI();
+
+      const tapHandler = (e)=>{ e.preventDefault(); registerResponse(); };
+      display.addEventListener('pointerdown', tapHandler);
+      tapBtn.addEventListener('click', tapHandler);
+      tapBarBtn.addEventListener('click', tapHandler);
+
+      // fallback onclick
+      window.__start = start;
+    }catch(e){ showErr('init: '+e.message); }
+  }
+
+  init();
+})();
+</script>
+</body>
+</html>
