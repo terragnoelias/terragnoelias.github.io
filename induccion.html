@@ -1,0 +1,1305 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Inducción de Reglas</title>
+  <style>
+    :root{
+      --bg0:#0b1220;
+      --bg1:#0f1b33;
+      --card: rgba(255,255,255,.06);
+      --card2: rgba(255,255,255,.09);
+      --text:#e9eefc;
+      --muted: rgba(233,238,252,.7);
+      --good:#35d07f;
+      --bad:#ff4d6d;
+      --warn:#ffd166;
+      --shadow: 0 18px 40px rgba(0,0,0,.35);
+      --ring: 0 0 0 3px rgba(120,160,255,.28);
+      --radius: 18px;
+      --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+      --sans: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, "Helvetica Neue", Arial, "Noto Sans", "Liberation Sans", sans-serif;
+    }
+    *{box-sizing:border-box}
+    body{
+      margin:0;
+      font-family: var(--sans);
+      color: var(--text);
+      background:
+        radial-gradient(1200px 800px at 15% 10%, rgba(80,130,255,.35), transparent 60%),
+        radial-gradient(900px 700px at 85% 30%, rgba(255,120,170,.25), transparent 55%),
+        radial-gradient(900px 900px at 50% 100%, rgba(60,240,190,.18), transparent 55%),
+        linear-gradient(180deg, var(--bg0), var(--bg1));
+      min-height:100vh;
+      display:flex;
+      justify-content:center;
+      padding:28px 16px;
+    }
+    .wrap{
+      width:min(980px, 100%);
+      display:grid;
+      grid-template-columns: 1.2fr .8fr;
+      gap:18px;
+    }
+    @media (max-width: 880px){ .wrap{grid-template-columns: 1fr; } }
+    .card{
+      background: var(--card);
+      border:1px solid rgba(255,255,255,.09);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(10px);
+      overflow:hidden;
+    }
+    .card .hd{
+      padding:16px 18px;
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:12px;
+      border-bottom:1px solid rgba(255,255,255,.08);
+      background: linear-gradient(180deg, rgba(255,255,255,.06), transparent);
+    }
+    .title{ display:flex; flex-direction:column; gap:2px; }
+    .title h1{ margin:0; font-size:16px; letter-spacing:.2px; font-weight:700; }
+    .title .sub{ font-size:12px; color: var(--muted); }
+    .pillrow{display:flex; flex-wrap:wrap; gap:8px; align-items:center; justify-content:flex-end;}
+    .pill{
+      padding:8px 10px;
+      border-radius:999px;
+      background: var(--card2);
+      border:1px solid rgba(255,255,255,.10);
+      font-family: var(--mono);
+      font-size:12px;
+      color: var(--text);
+      white-space:nowrap;
+    }
+    .pill b{font-weight:800}
+    .main{ padding:18px; display:grid; gap:14px; }
+    .stage{
+      background: rgba(255,255,255,.04);
+      border:1px solid rgba(255,255,255,.08);
+      border-radius: 22px;
+      padding:22px 18px;
+      display:grid;
+      gap:16px;
+      min-height: 340px;
+    }
+    .hint{ text-align:center; color: var(--muted); font-size: 12px; user-select:none; }
+
+    /* Fase de aprendizaje */
+    .learningPhase{
+      display:grid;
+      gap:16px;
+    }
+    .examplesGrid{
+      display:grid;
+      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+      gap:12px;
+    }
+    @media (max-width: 520px){
+      .examplesGrid{
+        grid-template-columns: repeat(2, 1fr);
+      }
+    }
+    .exampleCard{
+      background: rgba(255,255,255,.04);
+      border: 1px solid rgba(255,255,255,.08);
+      border-radius: 16px;
+      padding: 12px;
+      display:flex;
+      flex-direction:column;
+      align-items:center;
+      gap:8px;
+    }
+    .exampleCard.positive{ border-color: var(--good); }
+    .exampleCard.negative{ border-color: var(--bad); }
+    .exampleLabel{
+      font-family: var(--mono);
+      font-size: 18px;
+      font-weight: 800;
+    }
+    .exampleCard.positive .exampleLabel{ color: var(--good); }
+    .exampleCard.negative .exampleLabel{ color: var(--bad); }
+    .exampleCard svg{
+      width: 100%;
+      height: 100px;
+      max-width: 120px;
+    }
+
+    /* Fase de test */
+    .testPhase{
+      display:grid;
+      gap:16px;
+    }
+    .testFigure{
+      display:flex;
+      justify-content:center;
+      align-items:center;
+      min-height: 200px;
+    }
+    .testFigure svg{
+      width: 100%;
+      max-width: 300px;
+      height: 300px;
+    }
+    .testButtons{
+      display:flex;
+      gap:12px;
+      justify-content:center;
+    }
+    @media (max-width: 520px){
+      .testButtons{
+        flex-direction: column;
+      }
+    }
+    button.testBtn{
+      flex:1;
+      padding:16px 24px;
+      border-radius: 16px;
+      border: 2px solid rgba(255,255,255,.12);
+      background: rgba(255,255,255,.06);
+      color: var(--text);
+      font-family: var(--sans);
+      font-size: 16px;
+      font-weight: 700;
+      cursor:pointer;
+      transition: all .12s ease;
+      min-height: 60px;
+    }
+    button.testBtn:hover{
+      background: rgba(255,255,255,.10);
+      border-color: rgba(255,255,255,.20);
+      transform: translateY(-2px);
+    }
+    button.testBtn:active{ transform: translateY(0); }
+    button.testBtn.yes{
+      border-color: var(--good);
+      background: rgba(53,208,127,.15);
+    }
+    button.testBtn.yes:hover{
+      background: rgba(53,208,127,.25);
+    }
+    button.testBtn.no{
+      border-color: var(--bad);
+      background: rgba(255,77,109,.15);
+    }
+    button.testBtn.no:hover{
+      background: rgba(255,77,109,.25);
+    }
+    button.testBtn:disabled{
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    button{
+      padding:10px 16px;
+      border-radius: 12px;
+      border:1px solid rgba(255,255,255,.12);
+      background: rgba(255,255,255,.08);
+      color: var(--text);
+      font-family: var(--sans);
+      font-size: 13px;
+      font-weight: 600;
+      cursor:pointer;
+      transition: all .1s ease;
+    }
+    button:hover{ background: rgba(255,255,255,.12); }
+    button:active{ transform: scale(0.98); }
+    button:disabled{ opacity:0.5; cursor:not-allowed; }
+    button.danger{ background: rgba(255,77,109,.15); border-color: var(--bad); }
+    button.danger:hover{ background: rgba(255,77,109,.25); }
+    button.primary{ background: rgba(53,208,127,.15); border-color: var(--good); }
+    button.primary:hover{ background: rgba(53,208,127,.25); }
+
+    .stat .v{font-size:18px; font-weight:900; font-family: var(--mono);}
+    .v.good{color: var(--good);}
+    .v.bad{color: var(--bad);}
+    .v.warn{color: var(--warn);}
+
+    .badge{
+      display:inline-flex;
+      align-items:center;
+      gap:8px;
+      padding:8px 10px;
+      border-radius: 999px;
+      border:1px solid rgba(255,255,255,.10);
+      background: rgba(255,255,255,.06);
+      font-family: var(--mono);
+      font-size: 12px;
+      color: var(--muted);
+    }
+    .dot{
+      width:10px; height:10px; border-radius:999px;
+      background: rgba(255,255,255,.2);
+      box-shadow: 0 0 0 3px rgba(255,255,255,.06);
+    }
+    .dot.on{ background: var(--good); box-shadow: 0 0 0 3px rgba(53,208,127,.18); }
+
+    .side{ padding:18px; display:grid; gap:14px; }
+    .panel{
+      padding:14px 14px;
+      border-radius: 16px;
+      background: rgba(255,255,255,.05);
+      border:1px solid rgba(255,255,255,.08);
+      display:grid;
+      gap:10px;
+    }
+    .side h2{ margin:0; font-size:14px; letter-spacing:.2px; }
+    .row{
+      display:flex;
+      justify-content:space-between;
+      gap:12px;
+      align-items:baseline;
+      font-family: var(--mono);
+      font-size:12px;
+      color: var(--muted);
+    }
+    .row b{color: var(--text); font-weight:900;}
+    .small{ font-size:12px; color: var(--muted); line-height:1.35; }
+
+    .toast{
+      position: fixed;
+      left: 50%;
+      bottom: 18px;
+      transform: translateX(-50%);
+      background: rgba(15,27,51,.86);
+      border:1px solid rgba(255,255,255,.12);
+      border-radius: 999px;
+      padding: 10px 14px;
+      box-shadow: 0 18px 40px rgba(0,0,0,.35);
+      font-family: var(--mono);
+      font-size: 12px;
+      color: var(--text);
+      opacity:0;
+      pointer-events:none;
+      transition: opacity .2s ease, transform .2s ease;
+    }
+    .toast.show{ opacity:1; transform: translateX(-50%) translateY(-6px); }
+    .flash{ animation: flash .18s ease-out; }
+    @keyframes flash{ from{ transform: scale(1.01); } to{ transform: scale(1.0); } }
+
+    /* ====== CHART ====== */
+    .chartWrap{ display:grid; gap:10px; }
+    canvas#scoresChart{
+      width:100%;
+      height:160px;
+      border-radius: 14px;
+      background: rgba(255,255,255,.04);
+      border:1px solid rgba(255,255,255,.08);
+    }
+    .chartLegend{
+      display:flex;
+      justify-content:space-between;
+      gap:10px;
+      font-family: var(--mono);
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    /* ===== MOBILE FULLSCREEN MODE ===== */
+    @media (max-width: 880px) {
+      body { padding: 0; }
+      .wrap {
+        width: 100vw;
+        height: 100vh;
+        grid-template-columns: 1fr;
+        gap: 0;
+      }
+      .card {
+        border-radius: 0;
+        height: 100vh;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+      }
+      .card.stats {
+        display: none;
+      }
+      .card.stats.show {
+        display: flex;
+      }
+      .main {
+        flex: 1;
+        overflow-y: auto;
+        padding: 16px;
+      }
+      .mobile-toggle {
+        position: fixed;
+        bottom: 18px;
+        right: 18px;
+        z-index: 1000;
+        padding: 12px 18px;
+        border-radius: 999px;
+        background: var(--card2);
+        border: 1px solid rgba(255,255,255,.12);
+        color: var(--text);
+        font-family: var(--sans);
+        font-size: 14px;
+        font-weight: 600;
+        cursor: pointer;
+        box-shadow: var(--shadow);
+        backdrop-filter: blur(10px);
+      }
+    }
+    @media (min-width: 881px) {
+      .mobile-toggle { display: none; }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <section class="card game">
+      <div class="hd">
+        <div class="title">
+          <h1>Inducción de Reglas</h1>
+          <div class="sub">Descubrí la regla oculta</div>
+        </div>
+        <div class="pillrow">
+          <div class="pill"><span>Nivel: </span><b id="vLevel">1</b></div>
+          <div class="pill"><span>Bloque: </span><b id="vBlock">1</b></div>
+          <div class="pill"><span>Precisión: </span><b id="vAcc">—</b></div>
+        </div>
+      </div>
+
+      <div class="main">
+        <div class="stage" id="stage">
+          <div style="text-align:center; padding:40px;">
+            <p style="font-size:16px; color:var(--muted);">Presioná "Iniciar bloque" para comenzar</p>
+          </div>
+        </div>
+
+        <div style="display:flex; gap:10px; justify-content:center;">
+          <button id="btnStartBlock" class="primary">Iniciar bloque</button>
+          <button id="btnStop" disabled>Detener</button>
+          <button id="btnRestart">Reiniciar</button>
+        </div>
+      </div>
+    </section>
+
+    <aside class="card stats">
+      <div class="hd">
+        <div class="title">
+          <h1>Estadísticas</h1>
+          <div class="sub">Se guardan en tu navegador (localStorage).</div>
+        </div>
+        <div class="pillrow">
+          <button class="btn danger" id="btnResetStats">Borrar stats</button>
+        </div>
+      </div>
+
+      <div class="side">
+        <div class="panel">
+          <h2>Progreso</h2>
+          <div class="row"><span>Nivel actual</span><b id="sCurLevel">1</b></div>
+          <div class="row"><span>Mejor nivel alcanzado</span><b id="sMaxLevel">1</b></div>
+          <div class="row"><span>Bloques completados</span><b id="sBlocks">0</b></div>
+        </div>
+
+        <div class="panel">
+          <h2>Último bloque</h2>
+          <div class="row"><span>Precisión</span><b id="sLastAcc">—</b></div>
+          <div class="row"><span>d' (sensibilidad)</span><b id="sLastDPrime">—</b></div>
+          <div class="row"><span>Hits / Misses</span><b id="sLastHM">—</b></div>
+          <div class="row"><span>FA / CR</span><b id="sLastFACR">—</b></div>
+          <div class="row"><span>RT promedio</span><b id="sLastRT">—</b></div>
+        </div>
+
+        <div class="panel">
+          <h2>Precisión por regla</h2>
+          <div class="small" id="accByRule">—</div>
+        </div>
+
+        <div class="panel">
+          <h2>Puntajes en el tiempo</h2>
+          <div class="chartWrap">
+            <canvas id="scoresChart" width="900" height="260"></canvas>
+            <div class="chartLegend">
+              <span>Bloques: <b id="sBlocksCount">0</b></span>
+              <span>Mejor d': <b id="sBestDPrime">—</b></span>
+            </div>
+          </div>
+          <div class="small">Línea = d' por bloque (orden cronológico).</div>
+        </div>
+      </div>
+    </aside>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <!-- Botón mobile -->
+  <button class="mobile-toggle" id="btnToggleView">📊 Stats</button>
+
+  <script>
+    (() => {
+      // ====== CONFIG ======
+      const GRID_SIZE = 3;
+      const COLORS = ["#ff3b5c", "#3b82f6", "#22c55e", "#facc15", "#a855f7", "#fb923c", "#22d3ee"];
+      const EXAMPLES_COUNT = 6; // 3 positivos, 3 negativos
+      const WINDOW_SIZE = 5; // últimos 5 bloques para nivel
+      const PASS_THRESHOLD = 0.80;
+      const FAIL_THRESHOLD = 0.55;
+
+      // ====== STORAGE ======
+      const KEY = "induccion_reglas_v1";
+      function loadState(){
+        try{
+          const raw = localStorage.getItem(KEY);
+          if(!raw) return {
+            currentLevel: 1,
+            maxLevel: 1,
+            blocksCount: 0,
+            lastBlock: null,
+            blocks: []
+          };
+          const obj = JSON.parse(raw);
+          return {
+            currentLevel: Math.max(1, obj.currentLevel || 1),
+            maxLevel: Math.max(1, obj.maxLevel || 1),
+            blocksCount: obj.blocksCount || 0,
+            lastBlock: obj.lastBlock || null,
+            blocks: Array.isArray(obj.blocks) ? obj.blocks : []
+          };
+        }catch(e){
+          return { currentLevel: 1, maxLevel: 1, blocksCount: 0, lastBlock: null, blocks: [] };
+        }
+      }
+      function saveState(){
+        localStorage.setItem(KEY, JSON.stringify(appState));
+      }
+
+      let appState = loadState();
+
+      // ====== LEVEL CONFIGS ======
+      const LEVEL_CONFIGS = [
+        null, // índice 0 no usado
+        { // Nivel 1
+          elementCount: [1, 2],
+          testCount: 10,
+          rules: ["countExact", "hasShape", "parity", "hasColor"]
+        },
+        { // Nivel 2
+          elementCount: [2, 3],
+          testCount: 12,
+          rules: ["inRow", "inColumn", "centerOccupied", "hasShape", "hasColor"]
+        },
+        { // Nivel 3
+          elementCount: [3, 4],
+          testCount: 14,
+          rules: ["conjunction", "xor", "countCompare", "countDiff"]
+        },
+        { // Nivel 4
+          elementCount: [4, 5],
+          testCount: 16,
+          rules: ["conditional", "quadrantRule", "sizeProgression", "conjunction"]
+        },
+        { // Nivel 5
+          elementCount: [4, 5, 6],
+          testCount: 18,
+          rules: ["composite"], // 2 reglas combinadas
+          useComposite: true
+        }
+      ];
+
+      // ====== FIGURE REPRESENTATION ======
+      function createPrimitive(shape, x, y, size, rotation, fillIdx, strokeIdx, strokeWidth, isFilled){
+        return { shape, x, y, size, rotation: rotation || 0, fillIdx, strokeIdx, strokeWidth, isFilled };
+      }
+
+      function createFigure(elements, gridSize = GRID_SIZE){
+        return { elements, gridSize };
+      }
+
+      function cloneFigure(fig){
+        return {
+          elements: fig.elements.map(e => ({ ...e })),
+          gridSize: fig.gridSize
+        };
+      }
+
+      // ====== RULE CATALOG ======
+      const RULES = {
+        // Nivel 1-2: Conteo y presencia
+        countExact: (fig, params) => {
+          const target = params.count || 2;
+          return fig.elements.length === target;
+        },
+        hasShape: (fig, params) => {
+          const targetShape = params.shape || "triangle";
+          return fig.elements.some(e => e.shape === targetShape);
+        },
+        parity: (fig, params) => {
+          return fig.elements.length % 2 === 0;
+        },
+        hasColor: (fig, params) => {
+          const targetColor = params.colorIdx || 0;
+          return fig.elements.some(e => e.fillIdx === targetColor || e.strokeIdx === targetColor);
+        },
+        
+        // Nivel 2-3: Espaciales
+        inRow: (fig, params) => {
+          const targetRow = params.row || 0;
+          return fig.elements.some(e => e.y === targetRow);
+        },
+        inColumn: (fig, params) => {
+          const targetCol = params.col || 0;
+          return fig.elements.some(e => e.x === targetCol);
+        },
+        centerOccupied: (fig, params) => {
+          const center = Math.floor(GRID_SIZE / 2);
+          return fig.elements.some(e => e.x === center && e.y === center);
+        },
+        
+        // Nivel 3-4: Combinadas
+        conjunction: (fig, params) => {
+          const shape = params.shape || "triangle";
+          const colorIdx = params.colorIdx || 0;
+          return fig.elements.some(e => e.shape === shape && (e.fillIdx === colorIdx || e.strokeIdx === colorIdx));
+        },
+        xor: (fig, params) => {
+          const hasRed = fig.elements.some(e => e.fillIdx === 0 || e.strokeIdx === 0);
+          const hasTriangle = fig.elements.some(e => e.shape === "triangle");
+          return hasRed !== hasTriangle; // XOR
+        },
+        countCompare: (fig, params) => {
+          const circles = fig.elements.filter(e => e.shape === "circle").length;
+          const squares = fig.elements.filter(e => e.shape === "square").length;
+          return circles > squares;
+        },
+        countDiff: (fig, params) => {
+          const circles = fig.elements.filter(e => e.shape === "circle").length;
+          const squares = fig.elements.filter(e => e.shape === "square").length;
+          return Math.abs(circles - squares) === 1;
+        },
+        
+        // Nivel 4-5: Patrones
+        conditional: (fig, params) => {
+          const hasTriangle = fig.elements.some(e => e.shape === "triangle");
+          if(!hasTriangle) return true; // Si no hay triángulo, la regla se cumple
+          return fig.elements.some(e => e.fillIdx === 0 || e.strokeIdx === 0); // Si hay triángulo, debe haber rojo
+        },
+        quadrantRule: (fig, params) => {
+          const leftSide = Math.floor(GRID_SIZE / 2);
+          return fig.elements.filter(e => e.x <= leftSide).every(e => e.shape === "circle");
+        },
+        sizeProgression: (fig, params) => {
+          if(fig.elements.length < 3) return false;
+          const sizes = fig.elements.map(e => e.size).sort((a,b) => a-b);
+          const unique = new Set(sizes);
+          return unique.size === fig.elements.length;
+        },
+        
+        // Nivel 5: Compuesta
+        composite: (fig, params) => {
+          const ruleA = params.ruleA;
+          const ruleB = params.ruleB;
+          const op = params.op || "AND";
+          const resultA = RULES[ruleA.name](fig, ruleA.params);
+          const resultB = RULES[ruleB.name](fig, ruleB.params);
+          if(op === "AND") return resultA && resultB;
+          if(op === "OR") return resultA || resultB;
+          return resultA && resultB;
+        }
+      };
+
+      // ====== FIGURE GENERATION ======
+      function generateRandomFigure(elementCount, avoidPositions = []){
+        const elements = [];
+        const usedPositions = new Set(avoidPositions.map(p => `${p.x},${p.y}`));
+        
+        const count = Array.isArray(elementCount) 
+          ? elementCount[Math.floor(Math.random() * elementCount.length)]
+          : elementCount;
+        
+        for(let i=0; i<count; i++){
+          let x, y, attempts = 0;
+          do {
+            x = Math.floor(Math.random() * GRID_SIZE);
+            y = Math.floor(Math.random() * GRID_SIZE);
+            attempts++;
+            if(attempts > 50) break; // Evitar loop infinito
+          } while(usedPositions.has(`${x},${y}`));
+          usedPositions.add(`${x},${y}`);
+
+          const shapes = ["circle", "square", "triangle", "diamond"];
+          const shape = shapes[Math.floor(Math.random() * shapes.length)];
+          const size = 1 + Math.floor(Math.random() * 3);
+          const rotation = (shape === "triangle" || shape === "diamond") 
+            ? [0, 90, 180, 270][Math.floor(Math.random() * 4)] 
+            : 0;
+          const fillIdx = Math.floor(Math.random() * COLORS.length);
+          const strokeIdx = Math.floor(Math.random() * COLORS.length);
+          const strokeWidth = 1 + Math.floor(Math.random() * 3);
+          const isFilled = Math.random() > 0.5;
+
+          elements.push(createPrimitive(shape, x, y, size, rotation, fillIdx, strokeIdx, strokeWidth, isFilled));
+        }
+        return createFigure(elements);
+      }
+
+      // ====== EXAMPLE GENERATION ======
+      function generateExamples(rule, ruleParams, level){
+        const config = LEVEL_CONFIGS[level];
+        const elementCount = config.elementCount;
+        const positives = [];
+        const negatives = [];
+        const maxAttempts = 100;
+
+        // Generar positivos
+        for(let i = 0; i < EXAMPLES_COUNT / 2; i++){
+          let attempts = 0;
+          let fig;
+          do {
+            fig = generateRandomFigure(elementCount);
+            attempts++;
+          } while(!rule(fig, ruleParams) && attempts < maxAttempts);
+          if(attempts < maxAttempts) positives.push(fig);
+        }
+
+        // Generar negativos (cercanos)
+        for(let i = 0; i < EXAMPLES_COUNT / 2; i++){
+          let attempts = 0;
+          let fig;
+          do {
+            fig = generateNegativeDistractor(rule, ruleParams, elementCount, positives);
+            attempts++;
+          } while(rule(fig, ruleParams) && attempts < maxAttempts);
+          if(attempts < maxAttempts) negatives.push(fig);
+        }
+
+        return { positives, negatives };
+      }
+
+      function generateNegativeDistractor(rule, ruleParams, elementCount, positives){
+        // Estrategia: generar figura que falle por poco
+        const fig = generateRandomFigure(elementCount);
+        
+        // Si la regla es de conteo, modificar ligeramente
+        if(ruleParams.count !== undefined){
+          // Ya es negativa si el conteo no coincide
+          return fig;
+        }
+        
+        // Si es de forma, cambiar una forma
+        if(ruleParams.shape){
+          if(fig.elements.length > 0){
+            const idx = Math.floor(Math.random() * fig.elements.length);
+            const shapes = ["circle", "square", "triangle", "diamond"].filter(s => s !== ruleParams.shape);
+            fig.elements[idx].shape = shapes[Math.floor(Math.random() * shapes.length)];
+          }
+        }
+        
+        // Si es de color, cambiar un color
+        if(ruleParams.colorIdx !== undefined){
+          if(fig.elements.length > 0){
+            const idx = Math.floor(Math.random() * fig.elements.length);
+            const otherColors = COLORS.map((_, i) => i).filter(i => i !== ruleParams.colorIdx);
+            if(Math.random() > 0.5){
+              fig.elements[idx].fillIdx = otherColors[Math.floor(Math.random() * otherColors.length)];
+            }else{
+              fig.elements[idx].strokeIdx = otherColors[Math.floor(Math.random() * otherColors.length)];
+            }
+          }
+        }
+        
+        return fig;
+      }
+
+      // ====== TEST GENERATION ======
+      function generateTestFigures(rule, ruleParams, count, level){
+        const config = LEVEL_CONFIGS[level];
+        const elementCount = config.elementCount;
+        const tests = [];
+        const maxAttempts = 50;
+
+        // Aproximadamente 50% positivos, 50% negativos
+        for(let i = 0; i < count; i++){
+          const shouldBePositive = Math.random() > 0.5;
+          let attempts = 0;
+          let fig;
+          
+          if(shouldBePositive){
+            do {
+              fig = generateRandomFigure(elementCount);
+              attempts++;
+            } while(!rule(fig, ruleParams) && attempts < maxAttempts);
+          }else{
+            do {
+              fig = generateRandomFigure(elementCount);
+              attempts++;
+            } while(rule(fig, ruleParams) && attempts < maxAttempts);
+          }
+          
+          if(attempts < maxAttempts){
+            tests.push({ figure: fig, correct: shouldBePositive });
+          }
+        }
+
+        return tests;
+      }
+
+      // ====== RULE SELECTION ======
+      function selectRule(level){
+        const config = LEVEL_CONFIGS[level];
+        if(!config) return null;
+
+        if(config.useComposite && level >= 5){
+          // Combinar 2 reglas
+          const availableRules = ["countExact", "hasShape", "parity", "hasColor", "inRow", "inColumn"];
+          const ruleA = availableRules[Math.floor(Math.random() * availableRules.length)];
+          const ruleB = availableRules[Math.floor(Math.random() * availableRules.length)];
+          
+          const paramsA = getRuleParams(ruleA, level);
+          const paramsB = getRuleParams(ruleB, level);
+          
+          return {
+            name: "composite",
+            params: {
+              ruleA: { name: ruleA, params: paramsA },
+              ruleB: { name: ruleB, params: paramsB },
+              op: "AND"
+            }
+          };
+        }else{
+          const ruleName = config.rules[Math.floor(Math.random() * config.rules.length)];
+          return {
+            name: ruleName,
+            params: getRuleParams(ruleName, level)
+          };
+        }
+      }
+
+      function getRuleParams(ruleName, level){
+        const params = {};
+        switch(ruleName){
+          case "countExact":
+            params.count = 1 + Math.floor(Math.random() * 3);
+            break;
+          case "hasShape":
+            params.shape = ["circle", "square", "triangle", "diamond"][Math.floor(Math.random() * 4)];
+            break;
+          case "hasColor":
+            params.colorIdx = Math.floor(Math.random() * COLORS.length);
+            break;
+          case "inRow":
+            params.row = Math.floor(Math.random() * GRID_SIZE);
+            break;
+          case "inColumn":
+            params.col = Math.floor(Math.random() * GRID_SIZE);
+            break;
+          case "conjunction":
+            params.shape = ["triangle", "square"][Math.floor(Math.random() * 2)];
+            params.colorIdx = Math.floor(Math.random() * COLORS.length);
+            break;
+        }
+        return params;
+      }
+
+      // ====== RENDERING ======
+      function drawPrimitive(svg, prim, cellSize){
+        const x = (prim.x + 0.5) * cellSize;
+        const y = (prim.y + 0.5) * cellSize;
+        const size = prim.size * cellSize * 0.15;
+        const fill = prim.isFilled ? COLORS[prim.fillIdx] : "transparent";
+        const stroke = COLORS[prim.strokeIdx];
+        const strokeWidth = prim.strokeWidth;
+
+        let element;
+        switch(prim.shape){
+          case "circle":
+            element = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+            element.setAttribute("cx", x);
+            element.setAttribute("cy", y);
+            element.setAttribute("r", size);
+            break;
+          case "square":
+            element = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+            element.setAttribute("x", x - size);
+            element.setAttribute("y", y - size);
+            element.setAttribute("width", size * 2);
+            element.setAttribute("height", size * 2);
+            break;
+          case "triangle":
+            element = document.createElementNS("http://www.w3.org/2000/svg", "polygon");
+            const h = size * 1.732;
+            const points = `${x},${y - h} ${x - size},${y + h/2} ${x + size},${y + h/2}`;
+            element.setAttribute("points", points);
+            break;
+          case "diamond":
+            element = document.createElementNS("http://www.w3.org/2000/svg", "polygon");
+            const dPoints = `${x},${y - size} ${x + size},${y} ${x},${y + size} ${x - size},${y}`;
+            element.setAttribute("points", dPoints);
+            break;
+        }
+
+        element.setAttribute("fill", fill);
+        element.setAttribute("stroke", stroke);
+        element.setAttribute("stroke-width", strokeWidth);
+
+        if(prim.rotation && prim.rotation !== 0){
+          element.setAttribute("transform", `rotate(${prim.rotation} ${x} ${y})`);
+        }
+
+        svg.appendChild(element);
+        return element;
+      }
+
+      function renderFigure(svg, fig){
+        svg.innerHTML = "";
+        const cellSize = 100 / (fig.gridSize || GRID_SIZE);
+        fig.elements.forEach(prim => drawPrimitive(svg, prim, cellSize));
+      }
+
+      // ====== STATISTICS ======
+      function calculateDPrime(hits, misses, falseAlarms, correctRejects){
+        const totalPositives = hits + misses;
+        const totalNegatives = falseAlarms + correctRejects;
+        
+        if(totalPositives === 0 || totalNegatives === 0) return 0;
+        
+        const hitRate = hits / totalPositives;
+        const faRate = falseAlarms / totalNegatives;
+        
+        // Corrección 0.5/N para evitar infinitos
+        const correctedHitRate = Math.min(0.99, Math.max(0.01, hitRate));
+        const correctedFaRate = Math.min(0.99, Math.max(0.01, faRate));
+        
+        // Aproximación de Z-score (método simple)
+        const zHit = Math.sqrt(2) * inverseError(2 * correctedHitRate - 1);
+        const zFa = Math.sqrt(2) * inverseError(2 * correctedFaRate - 1);
+        
+        return zHit - zFa;
+      }
+
+      function inverseError(x){
+        // Aproximación simple de la función inversa de error
+        const a = 0.147;
+        const sign = x < 0 ? -1 : 1;
+        x = Math.abs(x);
+        const ln = Math.log(1 - x * x);
+        return sign * Math.sqrt(-2 / Math.PI / a - ln / 2 + Math.sqrt((2 / (Math.PI * a) + ln / 2) * (2 / (Math.PI * a) + ln / 2) - ln / a));
+      }
+
+      // ====== UI ELEMENTS ======
+      const el = (id) => document.getElementById(id);
+
+      const stage = el("stage");
+      const vLevel = el("vLevel");
+      const vBlock = el("vBlock");
+      const vAcc = el("vAcc");
+
+      const btnStartBlock = el("btnStartBlock");
+      const btnStop = el("btnStop");
+      const btnRestart = el("btnRestart");
+      const btnResetStats = el("btnResetStats");
+      const btnToggleView = el("btnToggleView");
+
+      const sCurLevel = el("sCurLevel");
+      const sMaxLevel = el("sMaxLevel");
+      const sBlocks = el("sBlocks");
+      const sLastAcc = el("sLastAcc");
+      const sLastDPrime = el("sLastDPrime");
+      const sLastHM = el("sLastHM");
+      const sLastFACR = el("sLastFACR");
+      const sLastRT = el("sLastRT");
+      const accByRule = el("accByRule");
+      const scoresChart = el("scoresChart");
+      const sBlocksCount = el("sBlocksCount");
+      const sBestDPrime = el("sBestDPrime");
+
+      const toast = el("toast");
+
+      // ====== GAME STATE ======
+      let currentBlock = null;
+      let currentPhase = "idle"; // "idle", "learning", "testing"
+      let currentTestIndex = 0;
+      let blockResults = [];
+      let currentRule = null;
+
+      // ====== BLOCK MANAGEMENT ======
+      function startBlock(){
+        if(currentPhase !== "idle") return;
+        
+        currentPhase = "learning";
+        const level = appState.currentLevel;
+        currentRule = selectRule(level);
+        
+        if(!currentRule){
+          showToast("Error: nivel inválido");
+          return;
+        }
+
+        const ruleFunc = RULES[currentRule.name];
+        const examples = generateExamples(ruleFunc, currentRule.params, level);
+        
+        currentBlock = {
+          level,
+          rule: currentRule,
+          examples,
+          testFigures: [],
+          results: [],
+          startTime: performance.now()
+        };
+
+        // Generar tests
+        const config = LEVEL_CONFIGS[level];
+        currentBlock.testFigures = generateTestFigures(ruleFunc, currentRule.params, config.testCount, level);
+
+        renderLearningPhase();
+        btnStartBlock.disabled = true;
+        btnStop.disabled = false;
+      }
+
+      function renderLearningPhase(){
+        stage.innerHTML = `
+          <div class="learningPhase">
+            <h2 style="text-align:center; margin:0 0 16px 0; font-size:18px;">Fase de aprendizaje</h2>
+            <p style="text-align:center; color:var(--muted); font-size:13px; margin-bottom:12px;">
+              Observá los ejemplos y descubrí la regla oculta
+            </p>
+            <div class="examplesGrid" id="examplesGrid"></div>
+            <div style="text-align:center; margin-top:16px;">
+              <button class="primary" id="btnStartTest">Empezar test</button>
+            </div>
+          </div>
+        `;
+
+        const examplesGrid = document.getElementById("examplesGrid");
+        const { positives, negatives } = currentBlock.examples;
+
+        positives.forEach(fig => {
+          const card = document.createElement("div");
+          card.className = "exampleCard positive";
+          const label = document.createElement("div");
+          label.className = "exampleLabel";
+          label.textContent = "✅";
+          const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+          svg.setAttribute("viewBox", "0 0 100 100");
+          renderFigure(svg, fig);
+          card.appendChild(label);
+          card.appendChild(svg);
+          examplesGrid.appendChild(card);
+        });
+
+        negatives.forEach(fig => {
+          const card = document.createElement("div");
+          card.className = "exampleCard negative";
+          const label = document.createElement("div");
+          label.className = "exampleLabel";
+          label.textContent = "❌";
+          const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+          svg.setAttribute("viewBox", "0 0 100 100");
+          renderFigure(svg, fig);
+          card.appendChild(label);
+          card.appendChild(svg);
+          examplesGrid.appendChild(card);
+        });
+
+        document.getElementById("btnStartTest").addEventListener("click", () => {
+          currentPhase = "testing";
+          currentTestIndex = 0;
+          renderTestPhase();
+        });
+      }
+
+      function renderTestPhase(){
+        if(currentTestIndex >= currentBlock.testFigures.length){
+          endBlock();
+          return;
+        }
+
+        const test = currentBlock.testFigures[currentTestIndex];
+        stage.innerHTML = `
+          <div class="testPhase">
+            <div class="hint">Test ${currentTestIndex + 1} de ${currentBlock.testFigures.length}</div>
+            <div class="testFigure">
+              <svg id="testFigureSVG" viewBox="0 0 100 100"></svg>
+            </div>
+            <div class="testButtons">
+              <button class="testBtn yes" id="btnYes">CUMPLE</button>
+              <button class="testBtn no" id="btnNo">NO CUMPLE</button>
+            </div>
+          </div>
+        `;
+
+        const testSVG = document.getElementById("testFigureSVG");
+        renderFigure(testSVG, test.figure);
+
+        const startTime = performance.now();
+
+        document.getElementById("btnYes").addEventListener("click", () => {
+          handleTestAnswer(true, startTime);
+        });
+        document.getElementById("btnNo").addEventListener("click", () => {
+          handleTestAnswer(false, startTime);
+        });
+      }
+
+      function handleTestAnswer(userAnswer, startTime){
+        const test = currentBlock.testFigures[currentTestIndex];
+        const reactionTime = performance.now() - startTime;
+        const isCorrect = userAnswer === test.correct;
+
+        currentBlock.results.push({
+          testIndex: currentTestIndex,
+          userAnswer,
+          correct: test.correct,
+          isCorrect,
+          reactionTime
+        });
+
+        currentTestIndex++;
+        
+        // Sin feedback inmediato (modo serio)
+        setTimeout(() => {
+          renderTestPhase();
+        }, 300);
+      }
+
+      function endBlock(){
+        currentPhase = "idle";
+        
+        // Calcular estadísticas
+        const results = currentBlock.results;
+        const hits = results.filter(r => r.correct && r.userAnswer).length;
+        const misses = results.filter(r => r.correct && !r.userAnswer).length;
+        const falseAlarms = results.filter(r => !r.correct && r.userAnswer).length;
+        const correctRejects = results.filter(r => !r.correct && !r.userAnswer).length;
+        
+        const accuracy = results.filter(r => r.isCorrect).length / results.length;
+        const dPrime = calculateDPrime(hits, misses, falseAlarms, correctRejects);
+        const avgRT = results.reduce((sum, r) => sum + r.reactionTime, 0) / results.length;
+
+        // Guardar bloque
+        const blockData = {
+          level: currentBlock.level,
+          ruleId: currentRule.name,
+          ruleParams: currentRule.params,
+          date: Date.now(),
+          m: results.length,
+          hits,
+          misses,
+          falseAlarms,
+          correctRejects,
+          accuracy,
+          dPrime,
+          avgRT,
+          medianRT: results.map(r => r.reactionTime).sort((a,b) => a-b)[Math.floor(results.length/2)]
+        };
+
+        appState.blocks.push(blockData);
+        appState.lastBlock = blockData;
+        appState.blocksCount++;
+        
+        if(appState.currentLevel > appState.maxLevel){
+          appState.maxLevel = appState.currentLevel;
+        }
+
+        // Ajustar nivel
+        adjustLevel();
+
+        saveState();
+        renderBlockResults(blockData);
+        renderStats();
+      }
+
+      function renderBlockResults(blockData){
+        stage.innerHTML = `
+          <div style="text-align:center; padding:40px;">
+            <h2 style="margin:0 0 20px 0; font-size:20px;">Bloque completado</h2>
+            <div style="display:grid; gap:12px; max-width:400px; margin:0 auto;">
+              <div class="row">
+                <span>Precisión</span>
+                <b>${(blockData.accuracy * 100).toFixed(1)}%</b>
+              </div>
+              <div class="row">
+                <span>d' (sensibilidad)</span>
+                <b>${blockData.dPrime.toFixed(2)}</b>
+              </div>
+              <div class="row">
+                <span>Hits / Misses</span>
+                <b>${blockData.hits} / ${blockData.misses}</b>
+              </div>
+              <div class="row">
+                <span>FA / CR</span>
+                <b>${blockData.falseAlarms} / ${blockData.correctRejects}</b>
+              </div>
+              <div class="row">
+                <span>RT promedio</span>
+                <b>${(blockData.avgRT / 1000).toFixed(2)}s</b>
+              </div>
+            </div>
+            <div style="margin-top:24px;">
+              <button class="primary" id="btnNextBlock">Siguiente bloque</button>
+            </div>
+          </div>
+        `;
+
+        document.getElementById("btnNextBlock").addEventListener("click", () => {
+          currentBlock = null;
+          renderIdle();
+          btnStartBlock.disabled = false;
+        });
+      }
+
+      function renderIdle(){
+        stage.innerHTML = `
+          <div style="text-align:center; padding:40px;">
+            <p style="font-size:16px; color:var(--muted);">Presioná "Iniciar bloque" para comenzar</p>
+          </div>
+        `;
+      }
+
+      function adjustLevel(){
+        const recentBlocks = appState.blocks.slice(-WINDOW_SIZE);
+        if(recentBlocks.length < WINDOW_SIZE) return;
+
+        const avgAccuracy = recentBlocks.reduce((sum, b) => sum + b.accuracy, 0) / recentBlocks.length;
+        
+        if(avgAccuracy >= PASS_THRESHOLD && appState.currentLevel < 5){
+          appState.currentLevel++;
+          showToast(`¡Subiste al nivel ${appState.currentLevel}!`);
+        }else if(avgAccuracy <= FAIL_THRESHOLD && appState.currentLevel > 1){
+          appState.currentLevel--;
+          showToast(`Bajaste al nivel ${appState.currentLevel}`);
+        }
+      }
+
+      function renderHUD(){
+        vLevel.textContent = appState.currentLevel;
+        vBlock.textContent = appState.blocksCount;
+        
+        if(appState.lastBlock){
+          vAcc.textContent = `${(appState.lastBlock.accuracy * 100).toFixed(0)}%`;
+        }else{
+          vAcc.textContent = "—";
+        }
+      }
+
+      function renderStats(){
+        sCurLevel.textContent = appState.currentLevel;
+        sMaxLevel.textContent = appState.maxLevel;
+        sBlocks.textContent = appState.blocksCount;
+
+        if(appState.lastBlock){
+          sLastAcc.textContent = `${(appState.lastBlock.accuracy * 100).toFixed(1)}%`;
+          sLastDPrime.textContent = appState.lastBlock.dPrime.toFixed(2);
+          sLastHM.textContent = `${appState.lastBlock.hits} / ${appState.lastBlock.misses}`;
+          sLastFACR.textContent = `${appState.lastBlock.falseAlarms} / ${appState.lastBlock.correctRejects}`;
+          sLastRT.textContent = `${(appState.lastBlock.avgRT / 1000).toFixed(2)}s`;
+        }else{
+          sLastAcc.textContent = "—";
+          sLastDPrime.textContent = "—";
+          sLastHM.textContent = "—";
+          sLastFACR.textContent = "—";
+          sLastRT.textContent = "—";
+        }
+
+        // Precisión por regla
+        const ruleStats = {};
+        appState.blocks.forEach(b => {
+          if(!ruleStats[b.ruleId]) ruleStats[b.ruleId] = { total: 0, correct: 0 };
+          ruleStats[b.ruleId].total += b.m;
+          ruleStats[b.ruleId].correct += b.hits + b.correctRejects;
+        });
+        
+        const ruleText = Object.entries(ruleStats)
+          .map(([rule, stats]) => `${rule}: ${((stats.correct / stats.total) * 100).toFixed(1)}%`)
+          .join(" | ");
+        accByRule.textContent = ruleText || "—";
+
+        // Gráfico
+        drawScoresChart();
+        sBlocksCount.textContent = appState.blocksCount;
+        
+        const bestDPrime = appState.blocks.length > 0
+          ? Math.max(...appState.blocks.map(b => b.dPrime))
+          : 0;
+        sBestDPrime.textContent = bestDPrime > 0 ? bestDPrime.toFixed(2) : "—";
+      }
+
+      function drawScoresChart(){
+        const canvas = scoresChart;
+        const ctx = canvas.getContext("2d");
+        const w = canvas.width;
+        const h = canvas.height;
+        
+        ctx.clearRect(0, 0, w, h);
+        
+        if(appState.blocks.length === 0) return;
+        
+        const blocks = appState.blocks.slice(-30); // últimos 30
+        const maxDPrime = Math.max(3, ...blocks.map(b => b.dPrime));
+        const minDPrime = Math.min(0, ...blocks.map(b => b.dPrime));
+        const range = maxDPrime - minDPrime || 1;
+        
+        ctx.strokeStyle = "#35d07f";
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        
+        blocks.forEach((block, i) => {
+          const x = (i / (blocks.length - 1 || 1)) * (w - 40) + 20;
+          const y = h - 20 - ((block.dPrime - minDPrime) / range) * (h - 40);
+          
+          if(i === 0) ctx.moveTo(x, y);
+          else ctx.lineTo(x, y);
+        });
+        
+        ctx.stroke();
+      }
+
+      function showToast(msg){
+        toast.textContent = msg;
+        toast.classList.add("show");
+        setTimeout(() => toast.classList.remove("show"), 2000);
+      }
+
+      function resetStats(){
+        if(!confirm("¿Borrar todas las estadísticas?")) return;
+        appState = {
+          currentLevel: 1,
+          maxLevel: 1,
+          blocksCount: 0,
+          lastBlock: null,
+          blocks: []
+        };
+        saveState();
+        renderHUD();
+        renderStats();
+        showToast("Estadísticas borradas");
+      }
+
+      // ====== EVENT LISTENERS ======
+      btnStartBlock.addEventListener("click", startBlock);
+      btnStop.addEventListener("click", () => {
+        if(currentPhase !== "idle" && confirm("¿Detener el bloque actual?")){
+          currentPhase = "idle";
+          currentBlock = null;
+          renderIdle();
+          btnStartBlock.disabled = false;
+          btnStop.disabled = true;
+        }
+      });
+      btnRestart.addEventListener("click", () => {
+        if(confirm("¿Reiniciar el juego?")){
+          appState.currentLevel = 1;
+          saveState();
+          renderHUD();
+          showToast("Juego reiniciado");
+        }
+      });
+      btnResetStats.addEventListener("click", resetStats);
+      
+      btnToggleView.addEventListener("click", () => {
+        document.querySelector(".card.stats").classList.toggle("show");
+      });
+
+      // ====== INIT ======
+      renderIdle();
+      renderHUD();
+      renderStats();
+    })();
+  </script>
+</body>
+</html>
+

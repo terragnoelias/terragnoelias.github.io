@@ -1,0 +1,1426 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Analogías de Figuras</title>
+  <style>
+    :root{
+      --bg0:#0b1220;
+      --bg1:#0f1b33;
+      --card: rgba(255,255,255,.06);
+      --card2: rgba(255,255,255,.09);
+      --text:#e9eefc;
+      --muted: rgba(233,238,252,.7);
+      --good:#35d07f;
+      --bad:#ff4d6d;
+      --warn:#ffd166;
+      --shadow: 0 18px 40px rgba(0,0,0,.35);
+      --ring: 0 0 0 3px rgba(120,160,255,.28);
+      --radius: 18px;
+      --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+      --sans: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, "Helvetica Neue", Arial, "Noto Sans", "Liberation Sans", sans-serif;
+    }
+    *{box-sizing:border-box}
+    body{
+      margin:0;
+      font-family: var(--sans);
+      color: var(--text);
+      background:
+        radial-gradient(1200px 800px at 15% 10%, rgba(80,130,255,.35), transparent 60%),
+        radial-gradient(900px 700px at 85% 30%, rgba(255,120,170,.25), transparent 55%),
+        radial-gradient(900px 900px at 50% 100%, rgba(60,240,190,.18), transparent 55%),
+        linear-gradient(180deg, var(--bg0), var(--bg1));
+      min-height:100vh;
+      display:flex;
+      justify-content:center;
+      padding:28px 16px;
+    }
+    .wrap{
+      width:min(980px, 100%);
+      display:grid;
+      grid-template-columns: 1.2fr .8fr;
+      gap:18px;
+    }
+    @media (max-width: 880px){ .wrap{grid-template-columns: 1fr; } }
+    .card{
+      background: var(--card);
+      border:1px solid rgba(255,255,255,.09);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(10px);
+      overflow:hidden;
+    }
+    .card .hd{
+      padding:16px 18px;
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:12px;
+      border-bottom:1px solid rgba(255,255,255,.08);
+      background: linear-gradient(180deg, rgba(255,255,255,.06), transparent);
+    }
+    .title{ display:flex; flex-direction:column; gap:2px; }
+    .title h1{ margin:0; font-size:16px; letter-spacing:.2px; font-weight:700; }
+    .title .sub{ font-size:12px; color: var(--muted); }
+    .pillrow{display:flex; flex-wrap:wrap; gap:8px; align-items:center; justify-content:flex-end;}
+    .pill{
+      padding:8px 10px;
+      border-radius:999px;
+      background: var(--card2);
+      border:1px solid rgba(255,255,255,.10);
+      font-family: var(--mono);
+      font-size:12px;
+      color: var(--text);
+      white-space:nowrap;
+    }
+    .pill b{font-weight:800}
+    .main{ padding:18px; display:grid; gap:14px; }
+    .stage{
+      background: rgba(255,255,255,.04);
+      border:1px solid rgba(255,255,255,.08);
+      border-radius: 22px;
+      padding:22px 18px;
+      display:grid;
+      gap:16px;
+      min-height: 340px;
+    }
+    .hint{ text-align:center; color: var(--muted); font-size: 12px; user-select:none; }
+
+    .analogyGrid{
+      display:grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap:16px;
+      margin: 10px 0;
+    }
+    @media (max-width: 520px){
+      .analogyGrid{
+        grid-template-columns: 1fr;
+        gap: 12px;
+      }
+    }
+    .analogyPanel{
+      background: rgba(255,255,255,.04);
+      border: 1px solid rgba(255,255,255,.08);
+      border-radius: 16px;
+      padding: 12px;
+      display:flex;
+      flex-direction:column;
+      align-items:center;
+      gap:8px;
+    }
+    .analogyPanel .label{
+      font-family: var(--mono);
+      font-size: 11px;
+      color: var(--muted);
+      text-transform:uppercase;
+    }
+    .analogyPanel svg{
+      width: 100%;
+      height: 120px;
+      max-width: 200px;
+    }
+
+    .optionsGrid{
+      display:grid;
+      grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+      gap:12px;
+      margin-top:10px;
+    }
+    @media (max-width: 520px){
+      .optionsGrid{
+        grid-template-columns: repeat(2, 1fr);
+      }
+    }
+    button.optionBtn{
+      cursor:pointer;
+      padding:12px 10px;
+      border-radius: 12px;
+      border: 1px solid rgba(255,255,255,.12);
+      background: rgba(255,255,255,.06);
+      color: var(--text);
+      box-shadow: 0 6px 16px rgba(0,0,0,.22);
+      transition: transform .06s ease, background .12s ease, border-color .12s ease;
+      user-select:none;
+      display:flex;
+      flex-direction:column;
+      align-items:center;
+      gap:6px;
+      min-height: 100px;
+    }
+    button.optionBtn:hover{ transform: translateY(-1px); background: rgba(255,255,255,.085); }
+    button.optionBtn:active{ transform: translateY(1px) scale(.995); }
+    button.optionBtn:focus-visible{ outline:none; box-shadow: var(--shadow), var(--ring); }
+    button.optionBtn:disabled{ opacity: 0.5; cursor: not-allowed; }
+    button.optionBtn svg{
+      width: 80px;
+      height: 80px;
+    }
+
+    .controls{ display:flex; gap:10px; flex-wrap:wrap; justify-content:space-between; align-items:center; }
+    .btnrow{display:flex; gap:10px; flex-wrap:wrap;}
+    .btn{
+      cursor:pointer;
+      padding:10px 12px;
+      border-radius: 12px;
+      border:1px solid rgba(255,255,255,.12);
+      background: rgba(255,255,255,.07);
+      color: var(--text);
+      font-weight:700;
+      font-size: 13px;
+      transition: background .12s ease, transform .06s ease;
+    }
+    .btn:hover{ background: rgba(255,255,255,.10); transform: translateY(-1px); }
+    .btn:active{ transform: translateY(1px); }
+    .btn.primary{
+      background: linear-gradient(180deg, rgba(120,160,255,.35), rgba(120,160,255,.15));
+      border-color: rgba(120,160,255,.55);
+    }
+    .btn.danger{
+      background: linear-gradient(180deg, rgba(255,77,109,.22), rgba(255,77,109,.10));
+      border-color: rgba(255,77,109,.45);
+    }
+
+    .status{
+      display:grid;
+      grid-template-columns: repeat(4, minmax(0,1fr));
+      gap:10px;
+    }
+    @media (max-width: 520px){ .status{grid-template-columns: repeat(2, minmax(0,1fr));} }
+    .stat{
+      padding:10px 12px;
+      border-radius: 14px;
+      background: rgba(255,255,255,.05);
+      border:1px solid rgba(255,255,255,.08);
+      display:flex;
+      flex-direction:column;
+      gap:4px;
+    }
+    .stat .k{font-size:11px; color: var(--muted); font-family: var(--mono);}
+    .stat .v{font-size:18px; font-weight:900; font-family: var(--mono);}
+    .v.good{color: var(--good);}
+    .v.bad{color: var(--bad);}
+    .v.warn{color: var(--warn);}
+
+    .badge{
+      display:inline-flex;
+      align-items:center;
+      gap:8px;
+      padding:8px 10px;
+      border-radius: 999px;
+      border:1px solid rgba(255,255,255,.10);
+      background: rgba(255,255,255,.06);
+      font-family: var(--mono);
+      font-size: 12px;
+      color: var(--muted);
+    }
+    .dot{
+      width:10px; height:10px; border-radius:999px;
+      background: rgba(255,255,255,.2);
+      box-shadow: 0 0 0 3px rgba(255,255,255,.06);
+    }
+    .dot.on{ background: var(--good); box-shadow: 0 0 0 3px rgba(53,208,127,.18); }
+
+    .side{ padding:18px; display:grid; gap:14px; }
+    .panel{
+      padding:14px 14px;
+      border-radius: 16px;
+      background: rgba(255,255,255,.05);
+      border:1px solid rgba(255,255,255,.08);
+      display:grid;
+      gap:10px;
+    }
+    .side h2{ margin:0; font-size:14px; letter-spacing:.2px; }
+    .row{
+      display:flex;
+      justify-content:space-between;
+      gap:12px;
+      align-items:baseline;
+      font-family: var(--mono);
+      font-size:12px;
+      color: var(--muted);
+    }
+    .row b{color: var(--text); font-weight:900;}
+    .small{ font-size:12px; color: var(--muted); line-height:1.35; }
+
+    .toast{
+      position: fixed;
+      left: 50%;
+      bottom: 18px;
+      transform: translateX(-50%);
+      background: rgba(15,27,51,.86);
+      border:1px solid rgba(255,255,255,.12);
+      border-radius: 999px;
+      padding: 10px 14px;
+      box-shadow: 0 18px 40px rgba(0,0,0,.35);
+      font-family: var(--mono);
+      font-size: 12px;
+      color: var(--text);
+      opacity:0;
+      pointer-events:none;
+      transition: opacity .2s ease, transform .2s ease;
+    }
+    .toast.show{ opacity:1; transform: translateX(-50%) translateY(-6px); }
+    .flash{ animation: flash .18s ease-out; }
+    @keyframes flash{ from{ transform: scale(1.01); } to{ transform: scale(1.0); } }
+
+    /* ====== CHART ====== */
+    .chartWrap{ display:grid; gap:10px; }
+    canvas#scoresChart{
+      width:100%;
+      height:160px;
+      border-radius: 14px;
+      background: rgba(255,255,255,.04);
+      border:1px solid rgba(255,255,255,.08);
+    }
+    .chartLegend{
+      display:flex;
+      justify-content:space-between;
+      gap:10px;
+      font-family: var(--mono);
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    /* ===== MOBILE FULLSCREEN MODE ===== */
+    @media (max-width: 880px) {
+      body { padding: 0; }
+      .wrap {
+        width: 100vw;
+        height: 100vh;
+        grid-template-columns: 1fr;
+        gap: 0;
+      }
+      .card {
+        border-radius: 0;
+        height: 100vh;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+      }
+      .card.stats { display: none; }
+      .card.active { display: flex; }
+      .card .hd { padding: 12px 14px; flex-shrink: 0; }
+      .main { 
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+        padding: 12px;
+        gap: 10px;
+      }
+      .controls { flex-shrink: 0; }
+      .status { flex-shrink: 0; }
+      .stage {
+        min-height: unset;
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        justify-content: flex-start;
+        padding: 12px 10px;
+        gap: 10px;
+        overflow: hidden;
+      }
+      .analogyGrid{
+        gap: 10px;
+        flex-shrink: 0;
+      }
+      .analogyPanel svg{
+        height: 100px;
+      }
+      .optionsGrid{
+        gap: 10px;
+        flex-shrink: 0;
+      }
+      button.optionBtn{
+        min-height: 90px;
+        padding: 10px 8px;
+      }
+      button.optionBtn svg{
+        width: 60px;
+        height: 60px;
+      }
+      .mobile-toggle {
+        position: fixed;
+        top: 10px;
+        right: 10px;
+        z-index: 999;
+        padding: 10px 12px;
+        border-radius: 999px;
+        border: 1px solid rgba(255,255,255,.15);
+        background: rgba(15,27,51,.85);
+        color: var(--text);
+        font-weight: 800;
+        font-size: 12px;
+        backdrop-filter: blur(8px);
+        cursor: pointer;
+        box-shadow: var(--shadow);
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <div class="wrap">
+    <section class="card game active">
+      <div class="hd">
+        <div class="title">
+          <h1>Analogías de Figuras</h1>
+          <div class="sub">Encontrá la figura que completa la analogía: si A se transforma en B, entonces C se transforma en ?</div>
+        </div>
+        <div class="pillrow">
+          <div class="pill">Duración: <b>3 min</b></div>
+          <div class="pill">Subís con ≥ <b>85%</b> en últimas 20</div>
+        </div>
+      </div>
+
+      <div class="main">
+        <div class="controls">
+          <div class="btnrow">
+            <button class="btn primary" id="btnStart">▶ Iniciar</button>
+            <button class="btn" id="btnStop" disabled>⏹ Detener</button>
+            <button class="btn" id="btnRestart" disabled>↻ Reiniciar</button>
+          </div>
+          <div class="badge" title="Estado">
+            <span class="dot" id="dotRun"></span>
+            <span id="lblState">Listo</span>
+          </div>
+        </div>
+
+        <div class="status">
+          <div class="stat"><div class="k">NIVEL</div><div class="v" id="vLevel">1</div></div>
+          <div class="stat"><div class="k">PUNTAJE</div><div class="v" id="vScore">0</div></div>
+          <div class="stat"><div class="k">TIEMPO</div><div class="v" id="vTime">30.0</div></div>
+          <div class="stat"><div class="k">ACIERTO</div><div class="v" id="vAcc">—</div></div>
+        </div>
+
+        <div class="stage" id="stage">
+          <div class="analogyGrid">
+            <div class="analogyPanel">
+              <div class="label">A</div>
+              <svg id="panelA" viewBox="0 0 100 100"></svg>
+            </div>
+            <div class="analogyPanel">
+              <div class="label">B</div>
+              <svg id="panelB" viewBox="0 0 100 100"></svg>
+            </div>
+            <div class="analogyPanel">
+              <div class="label">C</div>
+              <svg id="panelC" viewBox="0 0 100 100"></svg>
+            </div>
+            <div class="analogyPanel">
+              <div class="label">?</div>
+              <svg id="panelD" viewBox="0 0 100 100"></svg>
+            </div>
+          </div>
+
+          <div class="hint">Elegí la opción que completa la analogía</div>
+          <div class="optionsGrid" id="optionsGrid"></div>
+        </div>
+      </div>
+    </section>
+
+    <aside class="card stats">
+      <div class="hd">
+        <div class="title">
+          <h1>Estadísticas</h1>
+          <div class="sub">Se guardan en tu navegador (localStorage).</div>
+        </div>
+        <div class="pillrow">
+          <button class="btn danger" id="btnResetStats">Borrar stats</button>
+        </div>
+      </div>
+
+      <div class="side">
+        <div class="panel">
+          <h2>Progreso</h2>
+          <div class="row"><span>Nivel actual</span><b id="sCurLevel">1</b></div>
+          <div class="row"><span>Mejor nivel alcanzado</span><b id="sMaxLevel">1</b></div>
+          <div class="row"><span>Intentos totales</span><b id="sAttempts">0</b></div>
+        </div>
+
+        <div class="panel">
+          <h2>Puntajes en el tiempo</h2>
+          <div class="chartWrap">
+            <canvas id="scoresChart" width="900" height="260"></canvas>
+            <div class="chartLegend">
+              <span>Sesiones: <b id="sSessionsCount">0</b></span>
+              <span>Mejor puntaje: <b id="sBestEver">—</b></span>
+            </div>
+          </div>
+          <div class="small">Línea = puntaje final por sesión (orden cronológico).</div>
+        </div>
+
+        <div class="panel">
+          <h2>Última sesión</h2>
+          <div class="row"><span>Puntaje</span><b id="sLastScore">—</b></div>
+          <div class="row"><span>Correctas / Incorrectas</span><b id="sLastCE">—</b></div>
+          <div class="row"><span>Precisión</span><b id="sLastAcc">—</b></div>
+          <div class="row"><span>RT promedio</span><b id="sLastRT">—</b></div>
+        </div>
+
+        <div class="panel">
+          <h2>Precisión por regla</h2>
+          <div class="small" id="accByRule">—</div>
+        </div>
+      </div>
+    </aside>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <!-- Botón mobile -->
+  <button class="mobile-toggle" id="btnToggleView">📊 Stats</button>
+
+  <script>
+    (() => {
+      // ====== CONFIG ======
+      const GRID_SIZE = 3;
+      const COLORS = ["#ff3b5c", "#3b82f6", "#22c55e", "#facc15", "#a855f7", "#fb923c", "#22d3ee"];
+      const BASE_SCORE = 10;
+      const WINDOW_SIZE = 20;
+      const PASS_THRESHOLD = 0.85;
+      const FAIL_THRESHOLD = 0.55;
+      const SESSION_TIME_SECONDS = 180.0; // 3 minutos globales
+
+      // ====== STORAGE ======
+      const KEY = "analogias_figuras_v1";
+      function loadState(){
+        try{
+          const raw = localStorage.getItem(KEY);
+          if(!raw) return {
+            currentLevel: 1,
+            maxLevel: 1,
+            attempts: 0,
+            lastSession: null,
+            sessions: [],
+            rounds: []
+          };
+          const obj = JSON.parse(raw);
+          return {
+            currentLevel: Math.max(1, obj.currentLevel || 1),
+            maxLevel: Math.max(1, obj.maxLevel || 1),
+            attempts: obj.attempts || 0,
+            lastSession: obj.lastSession || null,
+            sessions: Array.isArray(obj.sessions) ? obj.sessions : [],
+            rounds: Array.isArray(obj.rounds) ? obj.rounds : []
+          };
+        }catch(e){
+          return { currentLevel: 1, maxLevel: 1, attempts: 0, lastSession: null, sessions: [], rounds: [] };
+        }
+      }
+      function saveState(){
+        localStorage.setItem(KEY, JSON.stringify(appState));
+      }
+      let appState = loadState();
+
+      // ====== FIGURE SYSTEM ======
+      function createPrimitive(shape, x, y, size, rotation, fillIdx, strokeIdx, strokeWidth, isFilled){
+        return {
+          shape, x, y, size, rotation, fillIdx, strokeIdx, strokeWidth, isFilled
+        };
+      }
+
+      function createFigure(elements){
+        return { elements, gridSize: GRID_SIZE };
+      }
+
+      function cloneFigure(fig){
+        return {
+          elements: fig.elements.map(el => ({...el})),
+          gridSize: fig.gridSize
+        };
+      }
+
+      // ====== TRANSFORMATIONS ======
+      const TRANSFORMATIONS = {
+        rotate90: (fig) => {
+          const newFig = cloneFigure(fig);
+          newFig.elements.forEach(el => {
+            const newX = GRID_SIZE - 1 - el.y;
+            const newY = el.x;
+            el.x = newX;
+            el.y = newY;
+            if(el.rotation !== undefined) el.rotation = (el.rotation + 90) % 360;
+          });
+          return newFig;
+        },
+        rotate180: (fig) => {
+          const newFig = cloneFigure(fig);
+          newFig.elements.forEach(el => {
+            el.x = GRID_SIZE - 1 - el.x;
+            el.y = GRID_SIZE - 1 - el.y;
+            if(el.rotation !== undefined) el.rotation = (el.rotation + 180) % 360;
+          });
+          return newFig;
+        },
+        rotate270: (fig) => {
+          const newFig = cloneFigure(fig);
+          newFig.elements.forEach(el => {
+            const newX = el.y;
+            const newY = GRID_SIZE - 1 - el.x;
+            el.x = newX;
+            el.y = newY;
+            if(el.rotation !== undefined) el.rotation = (el.rotation + 270) % 360;
+          });
+          return newFig;
+        },
+        flipH: (fig) => {
+          const newFig = cloneFigure(fig);
+          newFig.elements.forEach(el => {
+            el.x = GRID_SIZE - 1 - el.x;
+            if(el.rotation !== undefined && (el.shape === "triangle" || el.shape === "diamond")){
+              el.rotation = (360 - el.rotation) % 360;
+            }
+          });
+          return newFig;
+        },
+        flipV: (fig) => {
+          const newFig = cloneFigure(fig);
+          newFig.elements.forEach(el => {
+            el.y = GRID_SIZE - 1 - el.y;
+            if(el.rotation !== undefined && (el.shape === "triangle" || el.shape === "diamond")){
+              el.rotation = (180 - el.rotation) % 360;
+            }
+          });
+          return newFig;
+        },
+        translate: (fig, dx, dy) => {
+          const newFig = cloneFigure(fig);
+          newFig.elements.forEach(el => {
+            el.x = (el.x + dx + GRID_SIZE) % GRID_SIZE;
+            el.y = (el.y + dy + GRID_SIZE) % GRID_SIZE;
+          });
+          return newFig;
+        },
+        scaleUp: (fig) => {
+          const newFig = cloneFigure(fig);
+          newFig.elements.forEach(el => {
+            if(el.size < 3) el.size += 1;
+          });
+          return newFig;
+        },
+        scaleDown: (fig) => {
+          const newFig = cloneFigure(fig);
+          newFig.elements.forEach(el => {
+            if(el.size > 1) el.size -= 1;
+          });
+          return newFig;
+        },
+        colorShift: (fig, k) => {
+          const newFig = cloneFigure(fig);
+          newFig.elements.forEach(el => {
+            el.fillIdx = (el.fillIdx + k + COLORS.length) % COLORS.length;
+            el.strokeIdx = (el.strokeIdx + k + COLORS.length) % COLORS.length;
+          });
+          return newFig;
+        },
+        invertFill: (fig) => {
+          const newFig = cloneFigure(fig);
+          newFig.elements.forEach(el => {
+            el.isFilled = !el.isFilled;
+          });
+          return newFig;
+        },
+        strokeWidthUp: (fig) => {
+          const newFig = cloneFigure(fig);
+          newFig.elements.forEach(el => {
+            if(el.strokeWidth < 3) el.strokeWidth += 1;
+          });
+          return newFig;
+        },
+        strokeWidthDown: (fig) => {
+          const newFig = cloneFigure(fig);
+          newFig.elements.forEach(el => {
+            if(el.strokeWidth > 1) el.strokeWidth -= 1;
+          });
+          return newFig;
+        }
+      };
+
+      function applyTransformation(fig, rule){
+        if(typeof rule === "string"){
+          if(rule === "translate") return TRANSFORMATIONS.translate(fig, 1, 0);
+          if(rule === "color+1") return TRANSFORMATIONS.colorShift(fig, 1);
+          if(rule === "color-1") return TRANSFORMATIONS.colorShift(fig, -1);
+          return TRANSFORMATIONS[rule] ? TRANSFORMATIONS[rule](fig) : fig;
+        }
+        if(Array.isArray(rule)){
+          let result = fig;
+          rule.forEach(r => {
+            result = applyTransformation(result, r);
+          });
+          return result;
+        }
+        return fig;
+      }
+
+      // ====== LEVEL CONFIG ======
+      function getLevelConfig(level){
+        if(level === 1){
+          return {
+            elementCount: 1,
+            ruleCount: 1,
+            optionsCount: 2,
+            availableRules: ["rotate90", "flipH", "color+1"]
+          };
+        }else if(level === 2){
+          return {
+            elementCount: 2,
+            ruleCount: 1,
+            optionsCount: 3,
+            availableRules: ["rotate90", "rotate180", "flipH", "flipV", "translate", "color+1"]
+          };
+        }else if(level === 3){
+          return {
+            elementCount: 2,
+            ruleCount: 1,
+            optionsCount: 4,
+            availableRules: ["rotate90", "rotate180", "rotate270", "flipH", "flipV", "translate", "color+1", "color-1", "invertFill"]
+          };
+        }else{
+          return {
+            elementCount: Math.min(3 + Math.floor((level-4)/2), 4),
+            ruleCount: 2,
+            optionsCount: Math.min(4 + Math.floor((level-4)/2), 8),
+            availableRules: ["rotate90", "rotate180", "rotate270", "flipH", "flipV", "translate", "scaleUp", "scaleDown", "color+1", "color-1", "invertFill", "strokeWidthUp", "strokeWidthDown"]
+          };
+        }
+      }
+
+      // ====== FIGURE GENERATION ======
+      function generateRandomFigure(elementCount){
+        const elements = [];
+        const usedPositions = new Set();
+        
+        for(let i=0; i<elementCount; i++){
+          let x, y;
+          do {
+            x = Math.floor(Math.random() * GRID_SIZE);
+            y = Math.floor(Math.random() * GRID_SIZE);
+          } while(usedPositions.has(`${x},${y}`));
+          usedPositions.add(`${x},${y}`);
+
+          const shapes = ["circle", "square", "triangle", "diamond"];
+          const shape = shapes[Math.floor(Math.random() * shapes.length)];
+          const size = 1 + Math.floor(Math.random() * 3);
+          const rotation = (shape === "triangle" || shape === "diamond") ? [0, 90, 180, 270][Math.floor(Math.random() * 4)] : 0;
+          const fillIdx = Math.floor(Math.random() * COLORS.length);
+          const strokeIdx = Math.floor(Math.random() * COLORS.length);
+          const strokeWidth = 1 + Math.floor(Math.random() * 3);
+          const isFilled = Math.random() > 0.5;
+
+          elements.push(createPrimitive(shape, x, y, size, rotation, fillIdx, strokeIdx, strokeWidth, isFilled));
+        }
+        return createFigure(elements);
+      }
+
+      function figuresEqual(fig1, fig2){
+        if(fig1.elements.length !== fig2.elements.length) return false;
+        const sorted1 = [...fig1.elements].sort((a,b) => a.x*10 + a.y - (b.x*10 + b.y));
+        const sorted2 = [...fig2.elements].sort((a,b) => a.x*10 + a.y - (b.x*10 + b.y));
+        for(let i=0; i<sorted1.length; i++){
+          const e1 = sorted1[i], e2 = sorted2[i];
+          if(e1.shape !== e2.shape || e1.x !== e2.x || e1.y !== e2.y || e1.size !== e2.size ||
+             e1.fillIdx !== e2.fillIdx || e1.strokeIdx !== e2.strokeIdx || 
+             e1.strokeWidth !== e2.strokeWidth || e1.isFilled !== e2.isFilled) return false;
+        }
+        return true;
+      }
+
+      // ====== ROUND GENERATION ======
+      function generateDistractor(figA, figB, figC, correctRule, level){
+        const config = getLevelConfig(level);
+        const distractorTypes = [
+          () => {
+            const wrongRule = config.availableRules.filter(r => r !== correctRule[0])[Math.floor(Math.random() * (config.availableRules.length-1))];
+            return applyTransformation(figC, wrongRule);
+          },
+          () => {
+            if(Array.isArray(correctRule) && correctRule.length > 1){
+              return applyTransformation(figC, [correctRule[0]]);
+            }
+            return applyTransformation(figC, correctRule);
+          },
+          () => {
+            if(Array.isArray(correctRule)){
+              const reversed = [...correctRule].reverse();
+              return applyTransformation(figC, reversed);
+            }
+            return applyTransformation(figC, correctRule);
+          },
+          () => generateRandomFigure(config.elementCount)
+        ];
+        const type = distractorTypes[Math.floor(Math.random() * distractorTypes.length)];
+        return type();
+      }
+
+      function generateRound(){
+        if(!running) return;
+
+        const config = getLevelConfig(appState.currentLevel);
+        
+        // Generar A y C
+        let figA, figC;
+        let attempts = 0;
+        do {
+          figA = generateRandomFigure(config.elementCount);
+          figC = generateRandomFigure(config.elementCount);
+          attempts++;
+        } while(figuresEqual(figA, figC) && attempts < 10);
+
+        // Elegir regla(s)
+        let ruleSet;
+        if(config.ruleCount === 1){
+          ruleSet = config.availableRules[Math.floor(Math.random() * config.availableRules.length)];
+        }else{
+          const geomRules = ["rotate90", "rotate180", "flipH", "flipV", "translate"].filter(r => config.availableRules.includes(r));
+          const attrRules = ["color+1", "color-1", "invertFill", "strokeWidthUp"].filter(r => config.availableRules.includes(r));
+          const rule1 = geomRules[Math.floor(Math.random() * geomRules.length)];
+          const rule2 = attrRules[Math.floor(Math.random() * attrRules.length)];
+          ruleSet = [rule1, rule2];
+        }
+
+        // Aplicar regla
+        const figB = applyTransformation(figA, ruleSet);
+        const figD = applyTransformation(figC, ruleSet);
+
+        // Verificar que B != A y D != C
+        if(figuresEqual(figA, figB) || figuresEqual(figC, figD)){
+          return generateRound();
+        }
+
+        // Generar distractores
+        const options = [figD];
+        const usedOptions = new Set();
+        usedOptions.add(JSON.stringify(figD.elements));
+
+        while(options.length < config.optionsCount){
+          const distractor = generateDistractor(figA, figB, figC, ruleSet, appState.currentLevel);
+          const distractorKey = JSON.stringify(distractor.elements);
+          if(!usedOptions.has(distractorKey) && !figuresEqual(distractor, figC)){
+            options.push(distractor);
+            usedOptions.add(distractorKey);
+          }
+          if(options.length < config.optionsCount && usedOptions.size > 20) break;
+        }
+
+        // Crear un array de pares [figura, índice original] para rastrear la correcta
+        const optionsWithIndex = options.map((fig, idx) => ({ fig, originalIdx: idx }));
+        const correctOriginalIdx = 0; // figD está en posición 0
+        
+        // Mezclar el array de pares
+        for(let i = optionsWithIndex.length - 1; i > 0; i--){
+          const j = Math.floor(Math.random() * (i + 1));
+          [optionsWithIndex[i], optionsWithIndex[j]] = [optionsWithIndex[j], optionsWithIndex[i]];
+        }
+        
+        // Encontrar dónde quedó la figura correcta después del shuffle
+        let correctIndex = -1;
+        for(let i = 0; i < optionsWithIndex.length; i++){
+          if(optionsWithIndex[i].originalIdx === correctOriginalIdx){
+            correctIndex = i;
+            break;
+          }
+        }
+        
+        // Reconstruir el array de opciones en el orden mezclado
+        options.length = 0;
+        optionsWithIndex.forEach(({fig}) => options.push(fig));
+        
+        // Verificación de seguridad
+        if(correctIndex === -1 || correctIndex < 0 || correctIndex >= options.length){
+          console.error("Error: índice correcto inválido", correctIndex);
+          correctIndex = 0;
+        }
+
+        currentRound = {
+          figA, figB, figC, figD,
+          ruleSet,
+          options,
+          correctIndex,
+          startTime: performance.now()
+        };
+
+        renderRound();
+      }
+
+      // ====== RENDERING ======
+      function drawPrimitive(svg, prim, cellSize){
+        const x = (prim.x + 0.5) * cellSize;
+        const y = (prim.y + 0.5) * cellSize;
+        const size = prim.size * cellSize * 0.15;
+        const fill = prim.isFilled ? COLORS[prim.fillIdx] : "transparent";
+        const stroke = COLORS[prim.strokeIdx];
+        const strokeWidth = prim.strokeWidth;
+
+        let element;
+        switch(prim.shape){
+          case "circle":
+            element = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+            element.setAttribute("cx", x);
+            element.setAttribute("cy", y);
+            element.setAttribute("r", size);
+            break;
+          case "square":
+            element = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+            element.setAttribute("x", x - size);
+            element.setAttribute("y", y - size);
+            element.setAttribute("width", size * 2);
+            element.setAttribute("height", size * 2);
+            break;
+          case "triangle":
+            element = document.createElementNS("http://www.w3.org/2000/svg", "polygon");
+            const h = size * 1.732;
+            const points = `${x},${y - h} ${x - size},${y + h/2} ${x + size},${y + h/2}`;
+            element.setAttribute("points", points);
+            break;
+          case "diamond":
+            element = document.createElementNS("http://www.w3.org/2000/svg", "polygon");
+            const dPoints = `${x},${y - size} ${x + size},${y} ${x},${y + size} ${x - size},${y}`;
+            element.setAttribute("points", dPoints);
+            break;
+          case "plus":
+            const g = document.createElementNS("http://www.w3.org/2000/svg", "g");
+            const h1 = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+            h1.setAttribute("x", x - size);
+            h1.setAttribute("y", y - size/3);
+            h1.setAttribute("width", size * 2);
+            h1.setAttribute("height", size * 2/3);
+            const v1 = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+            v1.setAttribute("x", x - size/3);
+            v1.setAttribute("y", y - size);
+            v1.setAttribute("width", size * 2/3);
+            v1.setAttribute("height", size * 2);
+            g.appendChild(h1);
+            g.appendChild(v1);
+            element = g;
+            break;
+          case "line":
+            element = document.createElementNS("http://www.w3.org/2000/svg", "line");
+            element.setAttribute("x1", x - size);
+            element.setAttribute("y1", y);
+            element.setAttribute("x2", x + size);
+            element.setAttribute("y2", y);
+            break;
+        }
+
+        if(element.tagName === "g"){
+          element.childNodes.forEach(child => {
+            child.setAttribute("fill", fill);
+            child.setAttribute("stroke", stroke);
+            child.setAttribute("stroke-width", strokeWidth);
+          });
+        }else{
+          element.setAttribute("fill", fill);
+          element.setAttribute("stroke", stroke);
+          element.setAttribute("stroke-width", strokeWidth);
+        }
+
+        if(prim.rotation && prim.rotation !== 0){
+          const transform = `rotate(${prim.rotation} ${x} ${y})`;
+          if(element.tagName === "g"){
+            element.setAttribute("transform", transform);
+          }else{
+            element.setAttribute("transform", transform);
+          }
+        }
+
+        svg.appendChild(element.tagName === "g" ? element : element);
+        return element;
+      }
+
+      function renderFigure(svg, fig){
+        svg.innerHTML = "";
+        const cellSize = 100 / GRID_SIZE;
+        fig.elements.forEach(prim => drawPrimitive(svg, prim, cellSize));
+      }
+
+      function renderRound(){
+        if(!currentRound) return;
+
+        renderFigure(panelA, currentRound.figA);
+        renderFigure(panelB, currentRound.figB);
+        renderFigure(panelC, currentRound.figC);
+        panelD.innerHTML = "";
+
+        optionsGrid.innerHTML = "";
+        // Renderizar en el orden del array mezclado
+        currentRound.options.forEach((opt, idx) => {
+          const btn = document.createElement("button");
+          btn.className = "optionBtn";
+          const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+          svg.setAttribute("viewBox", "0 0 100 100");
+          renderFigure(svg, opt);
+          btn.appendChild(svg);
+          btn.addEventListener("click", () => {
+            onAnswer(idx, btn);
+          });
+          optionsGrid.appendChild(btn);
+        });
+
+        // Debug: verificar que el índice correcto no sea siempre 0
+        console.log("Índice correcto:", currentRound.correctIndex, "de", currentRound.options.length, "opciones");
+
+        renderHUD();
+      }
+
+      // ====== SCORING ======
+      function calculateScore(isCorrect, reactionTime, level){
+        const difficultyMultiplier = 1 + (level - 1) * 0.25;
+        const targetTime = Math.max(2.5, 7 - (level * 0.4));
+        
+        if(isCorrect){
+          let speedBonus = 0;
+          if(reactionTime <= targetTime * 1000){
+            speedBonus = 0.25 * BASE_SCORE;
+          }else if(reactionTime > targetTime * 2000){
+            speedBonus = -0.25 * BASE_SCORE;
+          }
+          return BASE_SCORE * difficultyMultiplier + speedBonus;
+        }else{
+          return -0.6 * BASE_SCORE * difficultyMultiplier;
+        }
+      }
+
+      // ====== UI ELEMENTS ======
+      const el = (id) => document.getElementById(id);
+
+      const panelA = el("panelA");
+      const panelB = el("panelB");
+      const panelC = el("panelC");
+      const panelD = el("panelD");
+      const optionsGrid = el("optionsGrid");
+
+      const vLevel = el("vLevel");
+      const vScore = el("vScore");
+      const vTime = el("vTime");
+      const vAcc = el("vAcc");
+
+      const btnStart = el("btnStart");
+      const btnStop = el("btnStop");
+      const btnRestart = el("btnRestart");
+      const btnResetStats = el("btnResetStats");
+
+      const dotRun = el("dotRun");
+      const lblState = el("lblState");
+      const stage = el("stage");
+      const toast = el("toast");
+
+      const sCurLevel = el("sCurLevel");
+      const sMaxLevel = el("sMaxLevel");
+      const sAttempts = el("sAttempts");
+      const sLastScore = el("sLastScore");
+      const sLastCE = el("sLastCE");
+      const sLastAcc = el("sLastAcc");
+      const sLastRT = el("sLastRT");
+      const accByRule = el("accByRule");
+
+      const chart = el("scoresChart");
+      const sSessionsCount = el("sSessionsCount");
+      const sBestEver = el("sBestEver");
+
+      // ====== GAME STATE ======
+      let running = false;
+      let timeLeft = SESSION_TIME_SECONDS;
+      let score = 0;
+      let streak = 0;
+      let correct = 0;
+      let wrong = 0;
+      let currentRound = null;
+      let sessionRounds = [];
+      let sessionTimerHandle = null;
+
+      // ====== HELPERS ======
+      function randInt(n){ return Math.floor(Math.random() * n); }
+      function shuffle(arr){
+        const a = arr.slice();
+        for(let i=a.length-1;i>0;i--){
+          const j = Math.floor(Math.random()*(i+1));
+          [a[i], a[j]] = [a[j], a[i]];
+        }
+        return a;
+      }
+      function showToast(msg){
+        toast.textContent = msg;
+        toast.classList.add("show");
+        setTimeout(() => toast.classList.remove("show"), 2000);
+      }
+      function setRunningUI(on){
+        dotRun.classList.toggle("on", on);
+        lblState.textContent = on ? "Jugando" : "Listo";
+        btnStart.disabled = on;
+        btnStop.disabled = !on;
+        btnRestart.disabled = !on;
+      }
+      function fmtPct(x){
+        if(!isFinite(x)) return "—";
+        return `${Math.round(x)}%`;
+      }
+      function fmt1(x){ return (Math.round(x*10)/10).toFixed(1); }
+
+      function renderHUD(){
+        vLevel.textContent = appState.currentLevel;
+        vScore.textContent = Math.round(score);
+        vTime.textContent = fmt1(timeLeft);
+
+        const total = correct + wrong;
+        vAcc.textContent = (total === 0) ? "—" : fmtPct((correct/total)*100);
+
+        vScore.classList.toggle("good", score > 0);
+        vScore.classList.toggle("bad", score < 0);
+        vTime.classList.toggle("warn", timeLeft <= 30);
+      }
+
+      function tickSessionTimer(){
+        if(!running) return;
+        timeLeft = Math.max(0, timeLeft - 0.1);
+        renderHUD();
+        if(timeLeft <= 0){
+          endSession(false);
+        }
+      }
+
+      function onAnswer(optionIndex, btn){
+        if(!running || !currentRound) return;
+
+        optionsGrid.querySelectorAll("button").forEach(b => b.disabled = true);
+
+        const isCorrect = optionIndex === currentRound.correctIndex;
+        const reactionTime = performance.now() - currentRound.startTime;
+        const points = calculateScore(isCorrect, reactionTime, appState.currentLevel);
+
+        score += points;
+
+        if(isCorrect){
+          correct += 1;
+          streak += 1;
+          btn.style.borderColor = "rgba(53,208,127,.8)";
+          btn.style.background = "rgba(53,208,127,.25)";
+        }else{
+          wrong += 1;
+          streak = 0;
+          btn.style.borderColor = "rgba(255,77,109,.8)";
+          btn.style.background = "rgba(255,77,109,.25)";
+          const correctBtn = optionsGrid.children[currentRound.correctIndex];
+          if(correctBtn){
+            correctBtn.style.borderColor = "rgba(53,208,127,.6)";
+            correctBtn.style.background = "rgba(53,208,127,.15)";
+          }
+        }
+
+        const ruleStr = Array.isArray(currentRound.ruleSet) ? currentRound.ruleSet.join(" + ") : currentRound.ruleSet;
+        sessionRounds.push({
+          timestamp: Date.now(),
+          level: appState.currentLevel,
+          ruleSet: currentRound.ruleSet,
+          nOptions: currentRound.options.length,
+          reactionTimeMs: Math.round(reactionTime),
+          isCorrect,
+          chosenOptionIndex: optionIndex,
+          correctOptionIndex: currentRound.correctIndex,
+          points: Math.round(points)
+        });
+
+        stage.classList.remove("flash");
+        void stage.offsetWidth;
+        stage.classList.add("flash");
+
+        renderHUD();
+        checkLevelUp();
+
+        setTimeout(() => {
+          if(running){
+            optionsGrid.querySelectorAll("button").forEach(b => {
+              b.disabled = false;
+              b.style.borderColor = "";
+              b.style.background = "";
+            });
+            generateRound();
+          }
+        }, 1500);
+      }
+
+
+      function checkLevelUp(){
+        if(sessionRounds.length < WINDOW_SIZE) return;
+
+        const recent = sessionRounds.slice(-WINDOW_SIZE);
+        const accuracy = recent.filter(r => r.isCorrect).length / WINDOW_SIZE;
+
+        if(accuracy >= PASS_THRESHOLD){
+          appState.currentLevel += 1;
+          appState.maxLevel = Math.max(appState.maxLevel, appState.currentLevel);
+          showToast(`¡Subiste a nivel ${appState.currentLevel}!`);
+          saveState();
+          renderStatsPanel();
+        }else if(accuracy <= FAIL_THRESHOLD && appState.currentLevel > 1){
+          appState.currentLevel -= 1;
+          showToast(`Bajaste a nivel ${appState.currentLevel}`);
+          saveState();
+          renderStatsPanel();
+        }
+      }
+
+      // ====== CHART ======
+      function drawScoresChart(){
+        if(!chart) return;
+
+        const ctx = chart.getContext("2d");
+        const W = chart.width;
+        const H = chart.height;
+        ctx.clearRect(0,0,W,H);
+
+        const sessions = Array.isArray(appState.sessions) ? appState.sessions : [];
+        const scores = sessions.map(s => Number(s.score)).filter(x => Number.isFinite(x));
+
+        sSessionsCount.textContent = String(scores.length);
+
+        if(scores.length === 0){
+          sBestEver.textContent = "—";
+          ctx.globalAlpha = 0.85;
+          ctx.font = "16px ui-monospace, Menlo, Consolas, monospace";
+          ctx.fillStyle = "rgba(233,238,252,.75)";
+          ctx.fillText("Todavía no hay sesiones guardadas.", 18, 46);
+          ctx.font = "12px ui-monospace, Menlo, Consolas, monospace";
+          ctx.fillStyle = "rgba(233,238,252,.55)";
+          ctx.fillText("Jugá al menos 1 sesión para ver el gráfico.", 18, 70);
+          ctx.globalAlpha = 1;
+          return;
+        }
+
+        const best = Math.max(...scores);
+        sBestEver.textContent = String(Math.round(best));
+
+        const padL = 42, padR = 14, padT = 16, padB = 30;
+        const iw = W - padL - padR;
+        const ih = H - padT - padB;
+
+        let minY = Math.min(...scores);
+        let maxY = Math.max(...scores);
+        if(minY === maxY){ minY -= 1; maxY += 1; }
+        const extra = Math.max(1, Math.round((maxY - minY) * 0.1));
+        minY -= extra; maxY += extra;
+
+        const xFor = (i) => padL + (iw * (scores.length === 1 ? 0 : (i/(scores.length-1))));
+        const yFor = (v) => padT + (ih * (1 - ((v - minY) / (maxY - minY))));
+
+        ctx.lineWidth = 1;
+        ctx.strokeStyle = "rgba(255,255,255,.10)";
+        for(let k=0;k<=3;k++){
+          const y = padT + (ih * (k/3));
+          ctx.beginPath(); ctx.moveTo(padL, y); ctx.lineTo(padL+iw, y); ctx.stroke();
+        }
+
+        ctx.strokeStyle = "rgba(255,255,255,.16)";
+        ctx.beginPath(); ctx.moveTo(padL, padT); ctx.lineTo(padL, padT+ih); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(padL, padT+ih); ctx.lineTo(padL+iw, padT+ih); ctx.stroke();
+
+        ctx.fillStyle = "rgba(233,238,252,.65)";
+        ctx.font = "12px ui-monospace, Menlo, Consolas, monospace";
+        ctx.fillText(String(Math.round(maxY)), 8, padT + 12);
+        ctx.fillText(String(Math.round(minY)), 8, padT + ih);
+
+        ctx.lineWidth = 2;
+        ctx.strokeStyle = "rgba(120,160,255,.95)";
+        ctx.beginPath();
+        scores.forEach((v,i) => {
+          const x = xFor(i);
+          const y = yFor(v);
+          if(i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
+        });
+        ctx.stroke();
+
+        ctx.fillStyle = "rgba(255,255,255,.9)";
+        scores.forEach((v,i) => {
+          const x = xFor(i);
+          const y = yFor(v);
+          ctx.beginPath();
+          ctx.arc(x,y,3,0,Math.PI*2);
+          ctx.fill();
+        });
+
+        ctx.fillStyle = "rgba(233,238,252,.55)";
+        ctx.font = "12px ui-monospace, Menlo, Consolas, monospace";
+        ctx.fillText(`Sesiones (1 … ${scores.length})`, padL, H - 10);
+      }
+
+      function renderStatsPanel(){
+        sCurLevel.textContent = appState.currentLevel;
+        sMaxLevel.textContent = appState.maxLevel;
+        sAttempts.textContent = appState.attempts;
+
+        const ls = appState.lastSession;
+        if(!ls){
+          sLastScore.textContent = "—";
+          sLastCE.textContent = "—";
+          sLastAcc.textContent = "—";
+          sLastRT.textContent = "—";
+        }else{
+          sLastScore.textContent = Math.round(ls.score);
+          sLastCE.textContent = `${ls.correct} / ${ls.wrong}`;
+          sLastAcc.textContent = fmtPct(ls.accuracy);
+          sLastRT.textContent = ls.avgRTms ? `${Math.round(ls.avgRTms)} ms` : "—";
+        }
+
+        // Precisión por regla
+        const allRounds = appState.rounds || [];
+        const ruleStats = {};
+        allRounds.forEach(r => {
+          const ruleKey = Array.isArray(r.ruleSet) ? r.ruleSet.join("+") : r.ruleSet;
+          if(!ruleStats[ruleKey]){
+            ruleStats[ruleKey] = { correct: 0, total: 0 };
+          }
+          ruleStats[ruleKey].total++;
+          if(r.isCorrect) ruleStats[ruleKey].correct++;
+        });
+
+        const ruleEntries = Object.entries(ruleStats).sort((a,b) => b[1].total - a[1].total).slice(0, 5);
+        if(ruleEntries.length === 0){
+          accByRule.textContent = "Todavía no hay datos.";
+        }else{
+          accByRule.innerHTML = ruleEntries.map(([rule, stats]) => {
+            const acc = (stats.correct / stats.total) * 100;
+            return `${rule}: <b>${Math.round(acc)}%</b> (${stats.correct}/${stats.total})`;
+          }).join("<br/>");
+        }
+
+        drawScoresChart();
+      }
+
+      // ====== SESSION CONTROL ======
+      function startSession(){
+        if(running) return;
+
+        running = true;
+        timeLeft = SESSION_TIME_SECONDS;
+        score = 0;
+        streak = 0;
+        correct = 0;
+        wrong = 0;
+        sessionRounds = [];
+
+        // El nivel ya está cargado desde appState.currentLevel (guardado de sesión anterior)
+
+        renderHUD();
+        setRunningUI(true);
+
+        appState.attempts += 1;
+        saveState();
+        renderStatsPanel();
+
+        generateRound();
+        sessionTimerHandle = setInterval(tickSessionTimer, 100);
+      }
+
+      function endSession(manual){
+        if(!running) return;
+
+        running = false;
+        clearInterval(sessionTimerHandle);
+        sessionTimerHandle = null;
+        setRunningUI(false);
+        optionsGrid.querySelectorAll("button").forEach(b => b.disabled = true);
+
+        const total = correct + wrong;
+        const acc = total ? (correct/total)*100 : null;
+        const avgRT = sessionRounds.length > 0 
+          ? sessionRounds.reduce((sum, r) => sum + r.reactionTimeMs, 0) / sessionRounds.length 
+          : null;
+
+        const session = {
+          at: new Date().toISOString(),
+          level: appState.currentLevel,
+          score,
+          correct,
+          wrong,
+          accuracy: acc,
+          avgRTms: avgRT,
+          rounds: sessionRounds.length
+        };
+
+        appState.lastSession = session;
+        appState.rounds = (appState.rounds || []).concat(sessionRounds);
+        if(appState.rounds.length > 1000) appState.rounds = appState.rounds.slice(-1000);
+
+        appState.sessions = Array.isArray(appState.sessions) ? appState.sessions : [];
+        appState.sessions.push({
+          at: session.at,
+          score: session.score,
+          level: session.level,
+          correct: session.correct,
+          wrong: session.wrong
+        });
+        if(appState.sessions.length > 400) appState.sessions = appState.sessions.slice(-400);
+
+        // Guardar nivel actual para próxima sesión
+        // (ya está en appState.currentLevel, solo hay que guardarlo)
+        saveState();
+        renderStatsPanel();
+        renderHUD();
+
+        if(!manual){
+          showToast(`Fin: ${Math.round(score)} pts (nivel ${appState.currentLevel})`);
+        }
+      }
+
+      function stopSession(){ endSession(true); }
+      function restartSession(){
+        if(running) stopSession();
+        startSession();
+      }
+
+      function resetStats(){
+        if(running) stopSession();
+        localStorage.removeItem(KEY);
+        appState = loadState();
+        score = 0; correct = 0; wrong = 0; streak = 0;
+        renderHUD();
+        renderStatsPanel();
+        showToast("Stats borradas.");
+      }
+
+      // ====== INIT ======
+      btnStart.addEventListener("click", startSession);
+      btnStop.addEventListener("click", stopSession);
+      btnRestart.addEventListener("click", restartSession);
+      btnResetStats.addEventListener("click", resetStats);
+
+      renderStatsPanel();
+      renderHUD();
+
+      // ===== MOBILE VIEW TOGGLE =====
+      document.addEventListener("DOMContentLoaded", () => {
+        const btnToggleView = document.getElementById("btnToggleView");
+        const gameCard = document.querySelector(".card.game");
+        const statsCard = document.querySelector(".card.stats");
+        if(!btnToggleView || !gameCard || !statsCard) return;
+
+        let showingStats = false;
+
+        function updateToggleLabel() {
+          btnToggleView.textContent = showingStats ? "🎮 Juego" : "📊 Stats";
+        }
+
+        btnToggleView.addEventListener("click", () => {
+          showingStats = !showingStats;
+          gameCard.classList.toggle("active", !showingStats);
+          statsCard.classList.toggle("active", showingStats);
+          updateToggleLabel();
+
+          setTimeout(() => drawScoresChart(), 50);
+        });
+
+        updateToggleLabel();
+      });
+
+      window.addEventListener("resize", () => {
+        clearTimeout(window.__chartResizeT);
+        window.__chartResizeT = setTimeout(() => drawScoresChart(), 100);
+      });
+
+    })();
+  </script>
+</body>
+</html>
+

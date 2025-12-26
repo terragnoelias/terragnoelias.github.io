@@ -1,0 +1,1006 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Memoria de Dígitos</title>
+  <style>
+    :root{
+      --bg0:#0b1220;
+      --bg1:#0f1b33;
+      --card: rgba(255,255,255,.06);
+      --card2: rgba(255,255,255,.09);
+      --text:#e9eefc;
+      --muted: rgba(233,238,252,.7);
+      --good:#35d07f;
+      --bad:#ff4d6d;
+      --warn:#ffd166;
+      --shadow: 0 18px 40px rgba(0,0,0,.35);
+      --ring: 0 0 0 3px rgba(120,160,255,.28);
+      --radius: 18px;
+      --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+      --sans: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, "Helvetica Neue", Arial, "Noto Sans", "Liberation Sans", sans-serif;
+    }
+    *{box-sizing:border-box}
+    body{
+      margin:0;
+      font-family: var(--sans);
+      color: var(--text);
+      background:
+        radial-gradient(1200px 800px at 15% 10%, rgba(80,130,255,.35), transparent 60%),
+        radial-gradient(900px 700px at 85% 30%, rgba(255,120,170,.25), transparent 55%),
+        radial-gradient(900px 900px at 50% 100%, rgba(60,240,190,.18), transparent 55%),
+        linear-gradient(180deg, var(--bg0), var(--bg1));
+      min-height:100vh;
+      display:flex;
+      justify-content:center;
+      padding:28px 16px;
+    }
+    .wrap{
+      width:min(980px, 100%);
+      display:grid;
+      grid-template-columns: 1.2fr .8fr;
+      gap:18px;
+    }
+    @media (max-width: 880px){ .wrap{grid-template-columns: 1fr; } }
+    .card{
+      background: var(--card);
+      border:1px solid rgba(255,255,255,.09);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(10px);
+      overflow:hidden;
+    }
+    .card .hd{
+      padding:16px 18px;
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:12px;
+      border-bottom:1px solid rgba(255,255,255,.08);
+      background: linear-gradient(180deg, rgba(255,255,255,.06), transparent);
+    }
+    .title{ display:flex; flex-direction:column; gap:2px; }
+    .title h1{ margin:0; font-size:16px; letter-spacing:.2px; font-weight:700; }
+    .title .sub{ font-size:12px; color: var(--muted); }
+    .pillrow{display:flex; flex-wrap:wrap; gap:8px; align-items:center; justify-content:flex-end;}
+    .pill{
+      padding:8px 10px;
+      border-radius:999px;
+      background: var(--card2);
+      border:1px solid rgba(255,255,255,.10);
+      font-family: var(--mono);
+      font-size:12px;
+      color: var(--text);
+      white-space:nowrap;
+    }
+    .pill b{font-weight:800}
+    .main{ padding:18px; display:grid; gap:14px; }
+    .stage{
+      background: rgba(255,255,255,.04);
+      border:1px solid rgba(255,255,255,.08);
+      border-radius: 22px;
+      padding:22px 18px;
+      display:grid;
+      gap:16px;
+      min-height: 340px;
+    }
+    .hint{ text-align:center; color: var(--muted); font-size: 12px; user-select:none; }
+
+    .digitDisplay{
+      text-align:center;
+      font-size: clamp(48px, 8vw, 96px);
+      font-weight: 900;
+      letter-spacing: 8px;
+      line-height: 1.2;
+      margin: 20px 0;
+      text-shadow: 0 10px 30px rgba(0,0,0,.25);
+      user-select:none;
+      font-family: var(--mono);
+      min-height: 120px;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+    }
+    .digitDisplay.hidden{ opacity: 0; }
+
+    .inputArea{
+      display:flex;
+      flex-direction:column;
+      gap:12px;
+      align-items:center;
+    }
+    .inputDisplay{
+      font-family: var(--mono);
+      font-size: clamp(32px, 6vw, 64px);
+      font-weight: 900;
+      letter-spacing: 4px;
+      min-height: 80px;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      color: var(--muted);
+      padding: 12px 20px;
+      border-radius: 16px;
+      background: rgba(255,255,255,.04);
+      border: 1px solid rgba(255,255,255,.08);
+      width: 100%;
+      max-width: 500px;
+    }
+    .inputDisplay.active{ color: var(--text); border-color: rgba(120,160,255,.4); }
+
+    .numPad{
+      display:grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap:12px;
+      max-width: 400px;
+      width: 100%;
+    }
+    button.numBtn{
+      cursor:pointer;
+      padding:20px 14px;
+      border-radius: 16px;
+      border: 1px solid rgba(255,255,255,.12);
+      background: rgba(255,255,255,.06);
+      color: var(--text);
+      font-size: clamp(24px, 5vw, 32px);
+      font-weight: 900;
+      letter-spacing:.4px;
+      box-shadow: 0 10px 22px rgba(0,0,0,.22);
+      transition: transform .06s ease, background .12s ease, border-color .12s ease;
+      user-select:none;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      min-height: 70px;
+      font-family: var(--mono);
+    }
+    button.numBtn:hover{ transform: translateY(-1px); background: rgba(255,255,255,.085); }
+    button.numBtn:active{ transform: translateY(1px) scale(.995); }
+    button.numBtn:focus-visible{ outline:none; box-shadow: var(--shadow), var(--ring); }
+    button.numBtn:disabled{ opacity: 0.5; cursor: not-allowed; }
+
+    .controls{ display:flex; gap:10px; flex-wrap:wrap; justify-content:space-between; align-items:center; }
+    .btnrow{display:flex; gap:10px; flex-wrap:wrap;}
+    .btn{
+      cursor:pointer;
+      padding:10px 12px;
+      border-radius: 12px;
+      border:1px solid rgba(255,255,255,.12);
+      background: rgba(255,255,255,.07);
+      color: var(--text);
+      font-weight:700;
+      font-size: 13px;
+      transition: background .12s ease, transform .06s ease;
+    }
+    .btn:hover{ background: rgba(255,255,255,.10); transform: translateY(-1px); }
+    .btn:active{ transform: translateY(1px); }
+    .btn.primary{
+      background: linear-gradient(180deg, rgba(120,160,255,.35), rgba(120,160,255,.15));
+      border-color: rgba(120,160,255,.55);
+    }
+    .btn.danger{
+      background: linear-gradient(180deg, rgba(255,77,109,.22), rgba(255,77,109,.10));
+      border-color: rgba(255,77,109,.45);
+    }
+
+    .status{
+      display:grid;
+      grid-template-columns: repeat(4, minmax(0,1fr));
+      gap:10px;
+    }
+    @media (max-width: 520px){ .status{grid-template-columns: repeat(2, minmax(0,1fr));} }
+    .stat{
+      padding:10px 12px;
+      border-radius: 14px;
+      background: rgba(255,255,255,.05);
+      border:1px solid rgba(255,255,255,.08);
+      display:flex;
+      flex-direction:column;
+      gap:4px;
+    }
+    .stat .k{font-size:11px; color: var(--muted); font-family: var(--mono);}
+    .stat .v{font-size:18px; font-weight:900; font-family: var(--mono);}
+    .v.good{color: var(--good);}
+    .v.bad{color: var(--bad);}
+    .v.warn{color: var(--warn);}
+
+    .badge{
+      display:inline-flex;
+      align-items:center;
+      gap:8px;
+      padding:8px 10px;
+      border-radius: 999px;
+      border:1px solid rgba(255,255,255,.10);
+      background: rgba(255,255,255,.06);
+      font-family: var(--mono);
+      font-size: 12px;
+      color: var(--muted);
+    }
+    .dot{
+      width:10px; height:10px; border-radius:999px;
+      background: rgba(255,255,255,.2);
+      box-shadow: 0 0 0 3px rgba(255,255,255,.06);
+    }
+    .dot.on{ background: var(--good); box-shadow: 0 0 0 3px rgba(53,208,127,.18); }
+
+    .side{ padding:18px; display:grid; gap:14px; }
+    .panel{
+      padding:14px 14px;
+      border-radius: 16px;
+      background: rgba(255,255,255,.05);
+      border:1px solid rgba(255,255,255,.08);
+      display:grid;
+      gap:10px;
+    }
+    .side h2{ margin:0; font-size:14px; letter-spacing:.2px; }
+    .row{
+      display:flex;
+      justify-content:space-between;
+      gap:12px;
+      align-items:baseline;
+      font-family: var(--mono);
+      font-size:12px;
+      color: var(--muted);
+    }
+    .row b{color: var(--text); font-weight:900;}
+    .small{ font-size:12px; color: var(--muted); line-height:1.35; }
+
+    .toast{
+      position: fixed;
+      left: 50%;
+      bottom: 18px;
+      transform: translateX(-50%);
+      background: rgba(15,27,51,.86);
+      border:1px solid rgba(255,255,255,.12);
+      border-radius: 999px;
+      padding: 10px 14px;
+      box-shadow: 0 18px 40px rgba(0,0,0,.35);
+      font-family: var(--mono);
+      font-size: 12px;
+      color: var(--text);
+      opacity:0;
+      pointer-events:none;
+      transition: opacity .2s ease, transform .2s ease;
+    }
+    .toast.show{ opacity:1; transform: translateX(-50%) translateY(-6px); }
+    .flash{ animation: flash .18s ease-out; }
+    @keyframes flash{ from{ transform: scale(1.01); } to{ transform: scale(1.0); } }
+
+    /* ====== CHART ====== */
+    .chartWrap{ display:grid; gap:10px; }
+    canvas#scoreChart{
+      width:100%;
+      height:160px;
+      border-radius: 14px;
+      background: rgba(255,255,255,.04);
+      border:1px solid rgba(255,255,255,.08);
+    }
+    .chartLegend{
+      display:flex;
+      justify-content:space-between;
+      gap:10px;
+      font-family: var(--mono);
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    /* ===== MOBILE FULLSCREEN MODE ===== */
+    @media (max-width: 880px) {
+      body { padding: 0; }
+      .wrap {
+        width: 100vw;
+        height: 100vh;
+        grid-template-columns: 1fr;
+        gap: 0;
+      }
+      .card {
+        border-radius: 0;
+        height: 100vh;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+      }
+      .card.stats { display: none; }
+      .card.active { display: flex; }
+      .card .hd { padding: 12px 14px; flex-shrink: 0; }
+      .main { 
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+        padding: 12px;
+        gap: 10px;
+      }
+      .controls { flex-shrink: 0; }
+      .status { flex-shrink: 0; }
+      .stage {
+        min-height: unset;
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        padding: 16px 12px;
+        gap: 12px;
+        overflow-y: auto;
+        -webkit-overflow-scrolling: touch;
+      }
+      .digitDisplay{
+        font-size: clamp(36px, 10vw, 72px);
+        letter-spacing: 4px;
+        min-height: 100px;
+        margin: 12px 0;
+      }
+      .inputDisplay{
+        font-size: clamp(24px, 7vw, 48px);
+        min-height: 60px;
+        padding: 10px 16px;
+      }
+      .numPad{
+        gap: 10px;
+        max-width: 100%;
+      }
+      button.numBtn{
+        padding: 16px 12px;
+        font-size: clamp(20px, 6vw, 28px);
+        min-height: 60px;
+      }
+      .mobile-toggle {
+        position: fixed;
+        top: 10px;
+        right: 10px;
+        z-index: 999;
+        padding: 10px 12px;
+        border-radius: 999px;
+        border: 1px solid rgba(255,255,255,.15);
+        background: rgba(15,27,51,.85);
+        color: var(--text);
+        font-weight: 800;
+        font-size: 12px;
+        backdrop-filter: blur(8px);
+        cursor: pointer;
+        box-shadow: var(--shadow);
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <div class="wrap">
+    <section class="card game active">
+      <div class="hd">
+        <div class="title">
+          <h1>Memoria de Dígitos</h1>
+          <div class="sub">Memorizá los dígitos mostrados y luego ingresalos correctamente.</div>
+        </div>
+        <div class="pillrow">
+          <div class="pill">Rondas: <b>30</b></div>
+          <div class="pill">+1 correcto / -1 incorrecto</div>
+        </div>
+      </div>
+
+      <div class="main">
+        <div class="controls">
+          <div class="btnrow">
+            <button class="btn primary" id="btnStart">▶ Iniciar</button>
+            <button class="btn" id="btnStop" disabled>⏹ Detener</button>
+            <button class="btn" id="btnRestart" disabled>↻ Reiniciar</button>
+          </div>
+          <div class="badge" title="Estado">
+            <span class="dot" id="dotRun"></span>
+            <span id="lblState">Listo</span>
+          </div>
+        </div>
+
+        <div class="status">
+          <div class="stat"><div class="k">RONDA</div><div class="v" id="vRound">0/30</div></div>
+          <div class="stat"><div class="k">PUNTAJE</div><div class="v" id="vScore">0</div></div>
+          <div class="stat"><div class="k">DÍGITOS</div><div class="v" id="vDigits">4</div></div>
+          <div class="stat"><div class="k">TIEMPO</div><div class="v" id="vTime">1000ms</div></div>
+        </div>
+
+        <div class="stage" id="stage">
+          <div class="hint" id="hint">Presioná "Iniciar" para comenzar</div>
+
+          <div class="digitDisplay" id="digitDisplay">—</div>
+
+          <div class="inputArea">
+            <div class="inputDisplay" id="inputDisplay">—</div>
+            <div class="numPad" id="numPad"></div>
+            <div style="display:flex; gap:10px; margin-top:8px;">
+              <button class="btn" id="btnClear" disabled>⌫ Borrar</button>
+              <button class="btn primary" id="btnSubmit" disabled>✓ Enviar</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <aside class="card stats">
+      <div class="hd">
+        <div class="title">
+          <h1>Estadísticas</h1>
+          <div class="sub">Se guardan en tu navegador (localStorage).</div>
+        </div>
+        <div class="pillrow">
+          <button class="btn danger" id="btnResetStats">Borrar stats</button>
+        </div>
+      </div>
+
+      <div class="side">
+        <div class="panel">
+          <h2>Última sesión</h2>
+          <div class="row"><span>Puntaje final</span><b id="sLastScore">—</b></div>
+          <div class="row"><span>Mejor ronda</span><b id="sBestRound">—</b></div>
+          <div class="row"><span>Máx dígitos</span><b id="sMaxDigits">—</b></div>
+          <div class="row"><span>Mín tiempo</span><b id="sMinTime">—</b></div>
+        </div>
+
+        <div class="panel">
+          <h2>Puntaje en el tiempo</h2>
+          <div class="chartWrap">
+            <canvas id="scoreChart" width="900" height="260"></canvas>
+            <div class="chartLegend">
+              <span>Sesiones: <b id="sSessionsCount">0</b></span>
+              <span>Mejor puntaje: <b id="sBestScoreChart">—</b></span>
+            </div>
+          </div>
+          <div class="small">Línea = puntaje final por sesión (orden cronológico).</div>
+        </div>
+
+        <div class="panel">
+          <h2>Récords</h2>
+          <div class="row"><span>Mejor puntaje</span><b id="sBestScore">—</b></div>
+          <div class="row"><span>Máx dígitos alcanzados</span><b id="sMaxDigitsEver">—</b></div>
+          <div class="row"><span>Mín tiempo alcanzado</span><b id="sMinTimeEver">—</b></div>
+        </div>
+      </div>
+    </aside>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <!-- Botón mobile -->
+  <button class="mobile-toggle" id="btnToggleView">📊 Stats</button>
+
+  <script>
+    (() => {
+      // ====== CONFIG ======
+      const TOTAL_ROUNDS = 30;
+      const BASE_DIGITS = 4;
+      const MIN_DIGITS = 4;
+      const BASE_TIME_MS = 1000;
+      const MIN_TIME_MS = 100;
+      const TIME_STEP_MS = 100;
+      const DIGITS_THRESHOLD = 8;
+      const STREAK_NEEDED = 3;
+
+      // ====== STORAGE ======
+      const KEY = "digitos_memory_v1";
+      function loadState(){
+        try{
+          const raw = localStorage.getItem(KEY);
+          if(!raw) return { 
+            bestScore: 0, 
+            maxDigitsEver: 0, 
+            minTimeEver: BASE_TIME_MS,
+            lastDigits: BASE_DIGITS,
+            lastTimeMs: BASE_TIME_MS,
+            sessions: []
+          };
+          const obj = JSON.parse(raw);
+          return {
+            bestScore: obj.bestScore || 0,
+            maxDigitsEver: obj.maxDigitsEver || 0,
+            minTimeEver: obj.minTimeEver || BASE_TIME_MS,
+            lastDigits: obj.lastDigits || BASE_DIGITS,
+            lastTimeMs: obj.lastTimeMs || BASE_TIME_MS,
+            sessions: Array.isArray(obj.sessions) ? obj.sessions : []
+          };
+        }catch(e){
+          return { 
+            bestScore: 0, 
+            maxDigitsEver: 0, 
+            minTimeEver: BASE_TIME_MS,
+            lastDigits: BASE_DIGITS,
+            lastTimeMs: BASE_TIME_MS,
+            sessions: []
+          };
+        }
+      }
+      function saveState(){
+        localStorage.setItem(KEY, JSON.stringify(appState));
+      }
+      let appState = loadState();
+
+      // ====== UI ELEMENTS ======
+      const el = (id) => document.getElementById(id);
+
+      const digitDisplay = el("digitDisplay");
+      const inputDisplay = el("inputDisplay");
+      const numPad = el("numPad");
+      const hint = el("hint");
+
+      const vRound = el("vRound");
+      const vScore = el("vScore");
+      const vDigits = el("vDigits");
+      const vTime = el("vTime");
+
+      const btnStart = el("btnStart");
+      const btnStop = el("btnStop");
+      const btnRestart = el("btnRestart");
+      const btnClear = el("btnClear");
+      const btnSubmit = el("btnSubmit");
+      const btnResetStats = el("btnResetStats");
+
+      const dotRun = el("dotRun");
+      const lblState = el("lblState");
+      const stage = el("stage");
+      const toast = el("toast");
+
+      const sLastScore = el("sLastScore");
+      const sBestRound = el("sBestRound");
+      const sMaxDigits = el("sMaxDigits");
+      const sMinTime = el("sMinTime");
+      const sBestScore = el("sBestScore");
+      const sMaxDigitsEver = el("sMaxDigitsEver");
+      const sMinTimeEver = el("sMinTimeEver");
+
+      const scoreChart = el("scoreChart");
+      const sSessionsCount = el("sSessionsCount");
+      const sBestScoreChart = el("sBestScoreChart");
+
+      // ====== GAME STATE ======
+      let running = false;
+      let currentRound = 0;
+      let score = 0;
+      let currentDigits = appState.lastDigits;
+      let currentTimeMs = appState.lastTimeMs;
+      let currentSequence = "";
+      let userInput = "";
+      let showingSequence = false;
+      let waitingInput = false;
+
+      let correctStreak = 0;
+      let wrongStreak = 0;
+      let lastRoundCorrect = 0;
+      let lastRoundWrong = 0;
+
+      let sessionBestRound = 0;
+      let sessionMaxDigits = BASE_DIGITS;
+      let sessionMinTime = BASE_TIME_MS;
+
+      // ====== HELPERS ======
+      function randInt(n){ return Math.floor(Math.random() * n); }
+      function generateSequence(length){
+        let seq = "";
+        for(let i=0; i<length; i++){
+          seq += randInt(10);
+        }
+        return seq;
+      }
+      function showToast(msg){
+        toast.textContent = msg;
+        toast.classList.add("show");
+        setTimeout(() => toast.classList.remove("show"), 2000);
+      }
+      function setRunningUI(on){
+        dotRun.classList.toggle("on", on);
+        lblState.textContent = on ? "Jugando" : "Listo";
+        btnStart.disabled = on;
+        btnStop.disabled = !on;
+        btnRestart.disabled = !on;
+      }
+
+      // ====== NUM PAD ======
+      function setupNumPad(){
+        numPad.innerHTML = "";
+        const nums = [1,2,3,4,5,6,7,8,9];
+        nums.forEach(n => {
+          const btn = document.createElement("button");
+          btn.className = "numBtn";
+          btn.textContent = n;
+          btn.addEventListener("click", () => addDigit(n));
+          numPad.appendChild(btn);
+        });
+        // Botón 0 más ancho
+        const zeroBtn = document.createElement("button");
+        zeroBtn.className = "numBtn";
+        zeroBtn.textContent = "0";
+        zeroBtn.style.gridColumn = "1 / 4";
+        zeroBtn.addEventListener("click", () => addDigit(0));
+        numPad.appendChild(zeroBtn);
+      }
+
+      function addDigit(digit){
+        if(!waitingInput) return;
+        userInput += digit;
+        updateInputDisplay();
+        btnClear.disabled = false;
+        if(userInput.length === currentSequence.length){
+          btnSubmit.disabled = false;
+        }
+      }
+
+      function clearInput(){
+        userInput = "";
+        updateInputDisplay();
+        btnClear.disabled = true;
+        btnSubmit.disabled = true;
+      }
+
+      function updateInputDisplay(){
+        inputDisplay.textContent = userInput || "—";
+        inputDisplay.classList.toggle("active", userInput.length > 0);
+      }
+
+      // ====== GAME LOGIC ======
+      function startRound(){
+        if(!running || currentRound >= TOTAL_ROUNDS) return;
+
+        currentRound++;
+        currentSequence = generateSequence(currentDigits);
+        userInput = "";
+        showingSequence = true;
+        waitingInput = false;
+
+        updateHUD();
+        digitDisplay.textContent = currentSequence;
+        digitDisplay.classList.remove("hidden");
+        inputDisplay.textContent = "—";
+        inputDisplay.classList.remove("active");
+        btnClear.disabled = true;
+        btnSubmit.disabled = true;
+        setNumPadEnabled(false);
+
+        hint.textContent = "Memorizá los dígitos...";
+
+        setTimeout(() => {
+          if(!running) return;
+          digitDisplay.classList.add("hidden");
+          showingSequence = false;
+          waitingInput = true;
+          hint.textContent = "Ingresá los dígitos en orden";
+          setNumPadEnabled(true);
+          updateInputDisplay();
+        }, currentTimeMs);
+      }
+
+      function submitAnswer(){
+        if(!waitingInput || !running) return;
+
+        let correct = 0;
+        let wrong = 0;
+        const minLen = Math.min(userInput.length, currentSequence.length);
+
+        for(let i=0; i<minLen; i++){
+          if(userInput[i] === currentSequence[i]){
+            correct++;
+          }else{
+            wrong++;
+          }
+        }
+        if(userInput.length < currentSequence.length){
+          wrong += (currentSequence.length - userInput.length);
+        }else if(userInput.length > currentSequence.length){
+          wrong += (userInput.length - currentSequence.length);
+        }
+
+        lastRoundCorrect = correct;
+        lastRoundWrong = wrong;
+
+        // Puntaje base: +1 por dígito correcto, -1 por incorrecto
+        const baseDelta = correct - wrong;
+
+        // Bonus por velocidad: 0 en 1000ms, 1 en 900ms, 2 en 800ms, ..., 8 en 200ms, etc.
+        const rawBonus = (BASE_TIME_MS - currentTimeMs) / TIME_STEP_MS;
+        const speedBonus = Math.max(0, Math.round(rawBonus));
+
+        score += baseDelta + speedBonus;
+
+        if(correct === currentSequence.length && wrong === 0){
+          correctStreak++;
+          wrongStreak = 0;
+        }else{
+          wrongStreak++;
+          correctStreak = 0;
+        }
+
+        // Ajustar dificultad
+        if(correctStreak >= STREAK_NEEDED){
+          if(currentTimeMs > MIN_TIME_MS){
+            // Si aún no llegamos al mínimo tiempo
+            if(currentDigits >= DIGITS_THRESHOLD){
+              // Si ya estamos en 8 o más, reducir tiempo y volver a 4
+              currentTimeMs = Math.max(MIN_TIME_MS, currentTimeMs - TIME_STEP_MS);
+              currentDigits = BASE_DIGITS;
+            }else{
+              // Si aún no llegamos a 8, aumentar dígitos
+              currentDigits++;
+            }
+            correctStreak = 0;
+          }else{
+            // Si ya estamos en mínimo tiempo, aumentar dígitos infinitamente
+            currentDigits++;
+            correctStreak = 0;
+          }
+        }else if(wrongStreak >= STREAK_NEEDED){
+          if(currentDigits > MIN_DIGITS){
+            currentDigits--;
+            wrongStreak = 0;
+          }
+        }
+
+        sessionMaxDigits = Math.max(sessionMaxDigits, currentDigits);
+        sessionMinTime = Math.min(sessionMinTime, currentTimeMs);
+        if(correct === currentSequence.length && wrong === 0){
+          sessionBestRound = Math.max(sessionBestRound, currentRound);
+        }
+
+        updateHUD();
+        showRoundResult(correct, wrong);
+
+        if(currentRound >= TOTAL_ROUNDS){
+          endGame();
+        }else{
+          setTimeout(() => {
+            if(running) startRound();
+          }, 2000);
+        }
+      }
+
+      function showRoundResult(correct, wrong){
+        const msg = `Ronda ${currentRound}: ${correct} correctos, ${wrong} incorrectos`;
+        showToast(msg);
+        hint.textContent = msg;
+      }
+
+      function setNumPadEnabled(enabled){
+        numPad.querySelectorAll("button").forEach(btn => {
+          btn.disabled = !enabled;
+        });
+        btnClear.disabled = !enabled || userInput.length === 0;
+        btnSubmit.disabled = !enabled || userInput.length === 0;
+      }
+
+      function updateHUD(){
+        vRound.textContent = `${currentRound}/${TOTAL_ROUNDS}`;
+        vScore.textContent = score;
+        vDigits.textContent = currentDigits;
+        vTime.textContent = `${currentTimeMs}ms`;
+
+        vScore.classList.toggle("good", score > 0);
+        vScore.classList.toggle("bad", score < 0);
+      }
+
+      function renderStatsPanel(){
+        sLastScore.textContent = score;
+        sBestRound.textContent = sessionBestRound > 0 ? sessionBestRound : "—";
+        sMaxDigits.textContent = sessionMaxDigits;
+        sMinTime.textContent = `${sessionMinTime}ms`;
+
+        sBestScore.textContent = appState.bestScore;
+        sMaxDigitsEver.textContent = appState.maxDigitsEver || "—";
+        sMinTimeEver.textContent = appState.minTimeEver ? `${appState.minTimeEver}ms` : "—";
+
+        drawScoreChart();
+      }
+
+      // ====== CHART ======
+      function drawScoreChart(){
+        if(!scoreChart) return;
+
+        const ctx = scoreChart.getContext("2d");
+        const W = scoreChart.width;
+        const H = scoreChart.height;
+        ctx.clearRect(0,0,W,H);
+
+        const sessions = Array.isArray(appState.sessions) ? appState.sessions : [];
+        const scores = sessions.map(s => {
+          if(typeof s.score === "number" && isFinite(s.score)) return s.score;
+          return null;
+        }).filter(x => x !== null);
+
+        sSessionsCount.textContent = String(scores.length);
+
+        if(scores.length === 0){
+          sBestScoreChart.textContent = "—";
+          ctx.globalAlpha = 0.85;
+          ctx.font = "16px ui-monospace, Menlo, Consolas, monospace";
+          ctx.fillStyle = "rgba(233,238,252,.75)";
+          ctx.fillText("Todavía no hay sesiones guardadas.", 18, 46);
+          ctx.font = "12px ui-monospace, Menlo, Consolas, monospace";
+          ctx.fillStyle = "rgba(233,238,252,.55)";
+          ctx.fillText("Jugá al menos 1 sesión para ver el gráfico.", 18, 70);
+          ctx.globalAlpha = 1;
+          return;
+        }
+
+        const best = Math.max(...scores);
+        sBestScoreChart.textContent = String(best);
+
+        const padL = 42, padR = 14, padT = 16, padB = 30;
+        const iw = W - padL - padR;
+        const ih = H - padT - padB;
+
+        let minY = Math.min(...scores);
+        let maxY = Math.max(...scores);
+        if(minY === maxY){ minY -= 1; maxY += 1; }
+        const extra = Math.max(1, Math.round((maxY - minY) * 0.1));
+        minY -= extra; maxY += extra;
+
+        const xFor = (i) => padL + (iw * (scores.length === 1 ? 0 : (i/(scores.length-1))));
+        const yFor = (v) => padT + (ih * (1 - ((v - minY) / (maxY - minY))));
+
+        ctx.lineWidth = 1;
+        ctx.strokeStyle = "rgba(255,255,255,.10)";
+        for(let k=0;k<=3;k++){
+          const y = padT + (ih * (k/3));
+          ctx.beginPath(); ctx.moveTo(padL, y); ctx.lineTo(padL+iw, y); ctx.stroke();
+        }
+
+        ctx.strokeStyle = "rgba(255,255,255,.16)";
+        ctx.beginPath(); ctx.moveTo(padL, padT); ctx.lineTo(padL, padT+ih); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(padL, padT+ih); ctx.lineTo(padL+iw, padT+ih); ctx.stroke();
+
+        ctx.fillStyle = "rgba(233,238,252,.65)";
+        ctx.font = "12px ui-monospace, Menlo, Consolas, monospace";
+        ctx.fillText(String(Math.round(maxY)), 8, padT + 12);
+        ctx.fillText(String(Math.round(minY)), 8, padT + ih);
+
+        ctx.lineWidth = 2;
+        ctx.strokeStyle = "rgba(53,208,127,.95)";
+        ctx.beginPath();
+        scores.forEach((v,i) => {
+          const x = xFor(i);
+          const y = yFor(v);
+          if(i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
+        });
+        ctx.stroke();
+
+        ctx.fillStyle = "rgba(255,255,255,.9)";
+        scores.forEach((v,i) => {
+          const x = xFor(i);
+          const y = yFor(v);
+          ctx.beginPath();
+          ctx.arc(x,y,3,0,Math.PI*2);
+          ctx.fill();
+        });
+
+        ctx.fillStyle = "rgba(233,238,252,.55)";
+        ctx.font = "12px ui-monospace, Menlo, Consolas, monospace";
+        ctx.fillText(`Sesiones (1 … ${scores.length})`, padL, H - 10);
+      }
+
+      // ====== GAME CONTROL ======
+      function startGame(){
+        if(running) return;
+
+        running = true;
+        currentRound = 0;
+        score = 0;
+        // Usar el nivel guardado de la última sesión
+        currentDigits = appState.lastDigits;
+        currentTimeMs = appState.lastTimeMs;
+        correctStreak = 0;
+        wrongStreak = 0;
+        sessionBestRound = 0;
+        sessionMaxDigits = currentDigits;
+        sessionMinTime = currentTimeMs;
+
+        setRunningUI(true);
+        updateHUD();
+        renderStatsPanel();
+
+        startRound();
+      }
+
+      function stopGame(){
+        if(!running) return;
+        running = false;
+        setRunningUI(false);
+        setNumPadEnabled(false);
+        digitDisplay.classList.add("hidden");
+        hint.textContent = "Juego detenido";
+      }
+
+      function restartGame(){
+        if(running) stopGame();
+        startGame();
+      }
+
+      function endGame(){
+        running = false;
+        setRunningUI(false);
+        setNumPadEnabled(false);
+        digitDisplay.classList.add("hidden");
+
+        // Guardar el nivel actual para la próxima sesión
+        appState.lastDigits = currentDigits;
+        appState.lastTimeMs = currentTimeMs;
+
+        if(score > appState.bestScore){
+          appState.bestScore = score;
+        }
+        if(sessionMaxDigits > appState.maxDigitsEver){
+          appState.maxDigitsEver = sessionMaxDigits;
+        }
+        if(sessionMinTime < appState.minTimeEver){
+          appState.minTimeEver = sessionMinTime;
+        }
+
+        // Guardar sesión
+        appState.sessions = Array.isArray(appState.sessions) ? appState.sessions : [];
+        appState.sessions.push({
+          at: new Date().toISOString(),
+          score: score,
+          maxDigits: sessionMaxDigits,
+          minTime: sessionMinTime,
+          finalDigits: currentDigits,
+          finalTime: currentTimeMs
+        });
+        if(appState.sessions.length > 400) appState.sessions = appState.sessions.slice(-400);
+
+        saveState();
+        renderStatsPanel();
+        showToast(`¡Juego terminado! Puntaje final: ${score}`);
+        hint.textContent = `Juego terminado. Puntaje: ${score}`;
+      }
+
+      function resetStats(){
+        if(running) stopGame();
+        localStorage.removeItem(KEY);
+        appState = loadState();
+        renderStatsPanel();
+        showToast("Stats borradas.");
+      }
+
+      // ====== INIT ======
+      setupNumPad();
+      btnStart.addEventListener("click", startGame);
+      btnStop.addEventListener("click", stopGame);
+      btnRestart.addEventListener("click", restartGame);
+      btnClear.addEventListener("click", clearInput);
+      btnSubmit.addEventListener("click", submitAnswer);
+      btnResetStats.addEventListener("click", resetStats);
+
+      updateHUD();
+      renderStatsPanel();
+
+      // También redibujo el chart en resize (útil si rotás el celu)
+      window.addEventListener("resize", () => {
+        clearTimeout(window.__chartResizeT);
+        window.__chartResizeT = setTimeout(() => drawScoreChart(), 100);
+      });
+
+      // ===== MOBILE VIEW TOGGLE =====
+      document.addEventListener("DOMContentLoaded", () => {
+        const btnToggleView = document.getElementById("btnToggleView");
+        const gameCard = document.querySelector(".card.game");
+        const statsCard = document.querySelector(".card.stats");
+        if(!btnToggleView || !gameCard || !statsCard) return;
+
+        let showingStats = false;
+
+        function updateToggleLabel() {
+          btnToggleView.textContent = showingStats ? "🎮 Juego" : "📊 Stats";
+        }
+
+        btnToggleView.addEventListener("click", () => {
+          showingStats = !showingStats;
+          gameCard.classList.toggle("active", !showingStats);
+          statsCard.classList.toggle("active", showingStats);
+          updateToggleLabel();
+
+          // por si el canvas estaba oculto, redibujo
+          setTimeout(() => drawScoreChart(), 50);
+        });
+
+        updateToggleLabel();
+      });
+
+    })();
+  </script>
+</body>
+</html>
+

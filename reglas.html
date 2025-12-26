@@ -1,0 +1,1366 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Simulación de Reglas</title>
+  <style>
+    :root{
+      --bg0:#0b1220;
+      --bg1:#0f1b33;
+      --card: rgba(255,255,255,.06);
+      --card2: rgba(255,255,255,.09);
+      --text:#e9eefc;
+      --muted: rgba(233,238,252,.7);
+      --good:#35d07f;
+      --bad:#ff4d6d;
+      --warn:#ffd166;
+      --shadow: 0 18px 40px rgba(0,0,0,.35);
+      --ring: 0 0 0 3px rgba(120,160,255,.28);
+      --radius: 18px;
+      --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+      --sans: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, "Helvetica Neue", Arial, "Noto Sans", "Liberation Sans", sans-serif;
+    }
+    *{box-sizing:border-box}
+    body{
+      margin:0;
+      font-family: var(--sans);
+      color: var(--text);
+      background:
+        radial-gradient(1200px 800px at 15% 10%, rgba(80,130,255,.35), transparent 60%),
+        radial-gradient(900px 700px at 85% 30%, rgba(255,120,170,.25), transparent 55%),
+        radial-gradient(900px 900px at 50% 100%, rgba(60,240,190,.18), transparent 55%),
+        linear-gradient(180deg, var(--bg0), var(--bg1));
+      min-height:100vh;
+      display:flex;
+      justify-content:center;
+      padding:28px 16px;
+    }
+    .wrap{
+      width:min(980px, 100%);
+      display:grid;
+      grid-template-columns: 1.2fr .8fr;
+      gap:18px;
+    }
+    @media (max-width: 880px){ .wrap{grid-template-columns: 1fr; } }
+    .card{
+      background: var(--card);
+      border:1px solid rgba(255,255,255,.09);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(10px);
+      overflow:hidden;
+    }
+    .card .hd{
+      padding:16px 18px;
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:12px;
+      border-bottom:1px solid rgba(255,255,255,.08);
+      background: linear-gradient(180deg, rgba(255,255,255,.06), transparent);
+    }
+    .title{ display:flex; flex-direction:column; gap:2px; }
+    .title h1{ margin:0; font-size:16px; letter-spacing:.2px; font-weight:700; }
+    .title .sub{ font-size:12px; color: var(--muted); }
+    .pillrow{display:flex; flex-wrap:wrap; gap:8px; align-items:center; justify-content:flex-end;}
+    .pill{
+      padding:8px 10px;
+      border-radius:999px;
+      background: var(--card2);
+      border:1px solid rgba(255,255,255,.10);
+      font-family: var(--mono);
+      font-size:12px;
+      color: var(--text);
+      white-space:nowrap;
+    }
+    .pill b{font-weight:800}
+    .main{ padding:18px; display:grid; gap:14px; }
+    .stage{
+      background: rgba(255,255,255,.04);
+      border:1px solid rgba(255,255,255,.08);
+      border-radius: 22px;
+      padding:22px 18px;
+      display:grid;
+      gap:16px;
+      min-height: 340px;
+    }
+    .hint{ text-align:center; color: var(--muted); font-size: 12px; user-select:none; }
+
+    /* Reglas */
+    .rulesBox{
+      background: rgba(255,255,255,.05);
+      border: 1px solid rgba(255,255,255,.10);
+      border-radius: 16px;
+      padding: 16px;
+      margin-bottom: 16px;
+    }
+    .rulesBox h3{
+      margin:0 0 12px 0;
+      font-size:14px;
+      color: var(--muted);
+      text-transform:uppercase;
+      letter-spacing:0.5px;
+    }
+    .ruleItem{
+      padding: 10px 12px;
+      margin: 8px 0;
+      background: rgba(255,255,255,.04);
+      border-left: 3px solid var(--good);
+      border-radius: 8px;
+      font-family: var(--mono);
+      font-size: 13px;
+      line-height: 1.6;
+    }
+    .ruleItem .condition{
+      color: var(--warn);
+      font-weight: 600;
+    }
+    .ruleItem .operation{
+      color: var(--good);
+    }
+
+    /* Problema */
+    .problemBox{
+      background: rgba(255,255,255,.05);
+      border: 1px solid rgba(255,255,255,.10);
+      border-radius: 16px;
+      padding: 20px;
+      text-align:center;
+      margin: 16px 0;
+    }
+    .problemBox .startNumber{
+      font-size: 48px;
+      font-weight: 800;
+      font-family: var(--mono);
+      color: var(--good);
+      margin: 12px 0;
+    }
+    .problemBox .steps{
+      font-size: 16px;
+      color: var(--muted);
+      margin-top: 8px;
+    }
+
+    /* Opciones */
+    .optionsGrid{
+      display:grid;
+      grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+      gap:12px;
+      margin-top:16px;
+    }
+    @media (max-width: 520px){
+      .optionsGrid{
+        grid-template-columns: repeat(2, 1fr);
+      }
+    }
+    button.optionBtn{
+      cursor:pointer;
+      padding:16px 12px;
+      border-radius: 12px;
+      border: 2px solid rgba(255,255,255,.12);
+      background: rgba(255,255,255,.06);
+      color: var(--text);
+      font-family: var(--mono);
+      font-size: 20px;
+      font-weight: 700;
+      box-shadow: 0 6px 16px rgba(0,0,0,.22);
+      transition: all .12s ease;
+      user-select:none;
+      min-height: 70px;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+    }
+    button.optionBtn:hover{
+      background: rgba(255,255,255,.10);
+      border-color: rgba(255,255,255,.20);
+      transform: translateY(-2px);
+    }
+    button.optionBtn:active{ transform: translateY(0); }
+    button.optionBtn:disabled{
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+    button.optionBtn.correct{
+      border-color: var(--good);
+      background: rgba(53,208,127,.20);
+    }
+    button.optionBtn.incorrect{
+      border-color: var(--bad);
+      background: rgba(255,77,109,.20);
+    }
+
+    button{
+      padding:10px 16px;
+      border-radius: 12px;
+      border:1px solid rgba(255,255,255,.12);
+      background: rgba(255,255,255,.08);
+      color: var(--text);
+      font-family: var(--sans);
+      font-size: 13px;
+      font-weight: 600;
+      cursor:pointer;
+      transition: all .1s ease;
+    }
+    button:hover{ background: rgba(255,255,255,.12); }
+    button:active{ transform: scale(0.98); }
+    button:disabled{ opacity:0.5; cursor:not-allowed; }
+    button.danger{ background: rgba(255,77,109,.15); border-color: var(--bad); }
+    button.danger:hover{ background: rgba(255,77,109,.25); }
+    button.primary{ background: rgba(53,208,127,.15); border-color: var(--good); }
+    button.primary:hover{ background: rgba(53,208,127,.25); }
+
+    .stat .v{font-size:18px; font-weight:900; font-family: var(--mono);}
+    .v.good{color: var(--good);}
+    .v.bad{color: var(--bad);}
+    .v.warn{color: var(--warn);}
+
+    .badge{
+      display:inline-flex;
+      align-items:center;
+      gap:8px;
+      padding:8px 10px;
+      border-radius: 999px;
+      border:1px solid rgba(255,255,255,.10);
+      background: rgba(255,255,255,.06);
+      font-family: var(--mono);
+      font-size: 12px;
+      color: var(--muted);
+    }
+    .dot{
+      width:10px; height:10px; border-radius:999px;
+      background: rgba(255,255,255,.2);
+      box-shadow: 0 0 0 3px rgba(255,255,255,.06);
+    }
+    .dot.on{ background: var(--good); box-shadow: 0 0 0 3px rgba(53,208,127,.18); }
+
+    .side{ padding:18px; display:grid; gap:14px; }
+    .panel{
+      padding:14px 14px;
+      border-radius: 16px;
+      background: rgba(255,255,255,.05);
+      border:1px solid rgba(255,255,255,.08);
+      display:grid;
+      gap:10px;
+    }
+    .side h2{ margin:0; font-size:14px; letter-spacing:.2px; }
+    .row{
+      display:flex;
+      justify-content:space-between;
+      gap:12px;
+      align-items:baseline;
+      font-family: var(--mono);
+      font-size:12px;
+      color: var(--muted);
+    }
+    .row b{color: var(--text); font-weight:900;}
+    .small{ font-size:12px; color: var(--muted); line-height:1.35; }
+
+    .toast{
+      position: fixed;
+      left: 50%;
+      bottom: 18px;
+      transform: translateX(-50%);
+      background: rgba(15,27,51,.86);
+      border:1px solid rgba(255,255,255,.12);
+      border-radius: 999px;
+      padding: 10px 14px;
+      box-shadow: 0 18px 40px rgba(0,0,0,.35);
+      font-family: var(--mono);
+      font-size: 12px;
+      color: var(--text);
+      opacity:0;
+      pointer-events:none;
+      transition: opacity .2s ease, transform .2s ease;
+    }
+    .toast.show{ opacity:1; transform: translateX(-50%) translateY(-6px); }
+    .flash{ animation: flash .18s ease-out; }
+    @keyframes flash{ from{ transform: scale(1.01); } to{ transform: scale(1.0); } }
+
+    /* ====== CHART ====== */
+    .chartWrap{ display:grid; gap:10px; }
+    canvas#scoresChart{
+      width:100%;
+      height:160px;
+      border-radius: 14px;
+      background: rgba(255,255,255,.04);
+      border:1px solid rgba(255,255,255,.08);
+    }
+    .chartLegend{
+      display:flex;
+      justify-content:space-between;
+      gap:10px;
+      font-family: var(--mono);
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    /* ===== MOBILE FULLSCREEN MODE ===== */
+    @media (max-width: 880px) {
+      body { padding: 0; }
+      .wrap {
+        width: 100vw;
+        height: 100vh;
+        grid-template-columns: 1fr;
+        gap: 0;
+      }
+      .card {
+        border-radius: 0;
+        height: 100vh;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+      }
+      .card.stats {
+        display: none;
+      }
+      .card.stats.show {
+        display: flex;
+      }
+      .main {
+        flex: 1;
+        overflow: hidden;
+        padding: 12px;
+        display: flex;
+        flex-direction: column;
+        min-height: 0;
+      }
+      .stage {
+        flex: 1;
+        min-height: 0;
+        padding: 8px 6px;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+        gap: 6px;
+      }
+      .rulesBox {
+        padding: 8px;
+        margin-bottom: 6px;
+        flex-shrink: 0;
+      }
+      .rulesBox h3 {
+        font-size: 10px;
+        margin-bottom: 6px;
+      }
+      .ruleItem {
+        padding: 5px 6px;
+        font-size: 10px;
+        margin: 3px 0;
+        line-height: 1.4;
+      }
+      .problemBox {
+        padding: 10px;
+        margin: 6px 0;
+        flex-shrink: 0;
+      }
+      .problemBox .startNumber {
+        font-size: 32px;
+        margin: 6px 0;
+      }
+      .problemBox .steps {
+        font-size: 12px;
+        margin-top: 3px;
+      }
+      .hint {
+        font-size: 10px;
+        margin: 4px 0;
+        flex-shrink: 0;
+      }
+      .optionsGrid {
+        flex: 1;
+        min-height: 0;
+        margin-top: 6px;
+        gap: 6px;
+        grid-template-columns: repeat(2, 1fr);
+        grid-auto-rows: minmax(50px, 1fr);
+        align-content: start;
+      }
+      button.optionBtn {
+        padding: 10px 6px;
+        font-size: 16px;
+        min-height: 50px;
+        max-height: 100%;
+      }
+      .mobile-toggle {
+        position: fixed;
+        bottom: 18px;
+        right: 18px;
+        z-index: 1000;
+        padding: 12px 18px;
+        border-radius: 999px;
+        background: var(--card2);
+        border: 1px solid rgba(255,255,255,.12);
+        color: var(--text);
+        font-family: var(--sans);
+        font-size: 14px;
+        font-weight: 600;
+        cursor: pointer;
+        box-shadow: var(--shadow);
+        backdrop-filter: blur(10px);
+      }
+    }
+    @media (min-width: 881px) {
+      .mobile-toggle { display: none; }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <section class="card game">
+      <div class="hd">
+        <div class="title">
+          <h1>Simulación de Reglas</h1>
+          <div class="sub">Simulá mentalmente la evolución del número</div>
+        </div>
+        <div class="pillrow">
+          <div class="pill"><span>Nivel: </span><b id="vLevel">1</b></div>
+          <div class="pill"><span>Puntaje: </span><b id="vScore">0</b></div>
+          <div class="pill"><span>Tiempo: </span><b id="vTime">180.0</b></div>
+          <div class="pill"><span>Precisión: </span><b id="vAcc">—</b></div>
+        </div>
+      </div>
+
+      <div class="main">
+        <div class="stage" id="stage">
+          <div style="text-align:center; padding:40px;">
+            <p style="font-size:16px; color:var(--muted);">Presioná "Iniciar" para comenzar</p>
+          </div>
+        </div>
+
+        <div style="display:flex; gap:10px; justify-content:center;">
+          <button id="btnStart" class="primary">Iniciar</button>
+          <button id="btnStop" disabled>Detener</button>
+          <button id="btnRestart">Reiniciar</button>
+        </div>
+      </div>
+    </section>
+
+    <aside class="card stats">
+      <div class="hd">
+        <div class="title">
+          <h1>Estadísticas</h1>
+          <div class="sub">Se guardan en tu navegador (localStorage).</div>
+        </div>
+        <div class="pillrow">
+          <button class="btn danger" id="btnResetStats">Borrar stats</button>
+        </div>
+      </div>
+
+      <div class="side">
+        <div class="panel">
+          <h2>Progreso</h2>
+          <div class="row"><span>Nivel actual</span><b id="sCurLevel">1</b></div>
+          <div class="row"><span>Mejor nivel alcanzado</span><b id="sMaxLevel">1</b></div>
+          <div class="row"><span>Intentos totales</span><b id="sAttempts">0</b></div>
+        </div>
+
+        <div class="panel">
+          <h2>Última sesión</h2>
+          <div class="row"><span>Puntaje</span><b id="sLastScore">—</b></div>
+          <div class="row"><span>Correctas / Incorrectas</span><b id="sLastCE">—</b></div>
+          <div class="row"><span>Precisión</span><b id="sLastAcc">—</b></div>
+          <div class="row"><span>RT promedio</span><b id="sLastRT">—</b></div>
+        </div>
+
+        <div class="panel">
+          <h2>Precisión por regla</h2>
+          <div class="small" id="accByRule">—</div>
+        </div>
+
+        <div class="panel">
+          <h2>Puntajes en el tiempo</h2>
+          <div class="chartWrap">
+            <canvas id="scoresChart" width="900" height="260"></canvas>
+            <div class="chartLegend">
+              <span>Sesiones: <b id="sSessionsCount">0</b></span>
+              <span>Mejor puntaje: <b id="sBestEver">—</b></span>
+            </div>
+          </div>
+          <div class="small">Línea = puntaje final por sesión (orden cronológico).</div>
+        </div>
+      </div>
+    </aside>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <!-- Botón mobile -->
+  <button class="mobile-toggle" id="btnToggleView">📊 Stats</button>
+
+  <script>
+    (() => {
+      // ====== CONFIG ======
+      const MIN_NUMBER = 1;
+      const MAX_NUMBER = 999;
+      const SESSION_TIME_SECONDS = 180.0; // 3 minutos
+      
+      // ====== SCORING FUNCTIONS ======
+      function calculateDifficultyMultiplier(level, steps, complexity){
+        // D = 1 + 0.18*(L-1) + 0.10*(N-3) + 0.12*(C-2)
+        return 1 + 0.18 * (level - 1) + 0.10 * (steps - 3) + 0.12 * (complexity - 2);
+      }
+      
+      function getTargetTime(level){
+        // targetTime(L) = max(1200, 2600 - 120*(L-1))
+        return Math.max(1200, 2600 - 120 * (level - 1));
+      }
+      
+      function calculateSpeedFactor(reactionTime, targetTime){
+        // si t <= targetTime: S = +0.10
+        // si t > 2*targetTime: S = -0.10
+        // si no: S = 0
+        if(reactionTime <= targetTime){
+          return 0.10;
+        }else if(reactionTime > 2 * targetTime){
+          return -0.10;
+        }
+        return 0;
+      }
+      
+      function calculateScore(isCorrect, level, steps, complexity, reactionTime){
+        const D = calculateDifficultyMultiplier(level, steps, complexity);
+        
+        if(isCorrect){
+          const targetTime = getTargetTime(level);
+          const S = calculateSpeedFactor(reactionTime, targetTime);
+          // pointsCorrect = round(10 * D * (1 + S))
+          return Math.round(10 * D * (1 + S));
+        }else{
+          // pointsWrong = -round(6 * D)
+          return -Math.round(6 * D);
+        }
+      }
+      
+      // ====== LEVEL ADJUSTMENT FUNCTIONS ======
+      function getMinItems(level){
+        // MinItems(L) = 10 + 2*(L-1)
+        return 10 + 2 * (level - 1);
+      }
+      
+      function getAccUp(level){
+        // AccUp(L) = clamp(0.92 - 0.01*(L-1), 0.84, 0.92)
+        return Math.max(0.84, Math.min(0.92, 0.92 - 0.01 * (level - 1)));
+      }
+      
+      function getScoreUp(level){
+        // ScoreUp(L) = round(220 + 85*(L-1))
+        return Math.round(220 + 85 * (level - 1));
+      }
+      
+      function getAccDown(level){
+        // AccDown(L) = clamp(0.62 - 0.005*(L-1), 0.55, 0.62)
+        return Math.max(0.55, Math.min(0.62, 0.62 - 0.005 * (level - 1)));
+      }
+      
+      function getScoreDown(level){
+        // ScoreDown(L) = round(80 + 45*(L-1))
+        return Math.round(80 + 45 * (level - 1));
+      }
+
+      // ====== STORAGE ======
+      const KEY = "simulacion_reglas_v1";
+      function loadState(){
+        try{
+          const raw = localStorage.getItem(KEY);
+          if(!raw) return {
+            currentLevel: 1,
+            maxLevel: 1,
+            attempts: 0,
+            lastSession: null,
+            sessions: [],
+            rounds: []
+          };
+          const obj = JSON.parse(raw);
+          return {
+            currentLevel: Math.max(1, obj.currentLevel || 1),
+            maxLevel: Math.max(1, obj.maxLevel || 1),
+            attempts: obj.attempts || 0,
+            lastSession: obj.lastSession || null,
+            sessions: Array.isArray(obj.sessions) ? obj.sessions : [],
+            rounds: Array.isArray(obj.rounds) ? obj.rounds : []
+          };
+        }catch(e){
+          return { currentLevel: 1, maxLevel: 1, attempts: 0, lastSession: null, sessions: [], rounds: [] };
+        }
+      }
+      function saveState(){
+        localStorage.setItem(KEY, JSON.stringify(appState));
+      }
+
+      let appState = loadState();
+
+      // ====== UTILITY FUNCTIONS ======
+      function clamp(n){
+        return Math.max(MIN_NUMBER, Math.min(MAX_NUMBER, Math.round(n)));
+      }
+
+      function sumDigits(n){
+        return Math.abs(n).toString().split('').reduce((sum, d) => sum + parseInt(d), 0);
+      }
+
+      function isPrime(n){
+        if(n < 2) return false;
+        if(n === 2) return true;
+        if(n % 2 === 0) return false;
+        for(let i = 3; i * i <= n; i += 2){
+          if(n % i === 0) return false;
+        }
+        return true;
+      }
+
+      function reverseDigits(n){
+        return parseInt(Math.abs(n).toString().split('').reverse().join('')) * (n < 0 ? -1 : 1);
+      }
+
+      function lastDigit(n){
+        return Math.abs(n) % 10;
+      }
+
+      // ====== CONDITIONS ======
+      const CONDITIONS = {
+        isEven: (n) => n % 2 === 0,
+        isOdd: (n) => n % 2 !== 0,
+        greaterThan: (n, k) => n > k,
+        lessThan: (n, k) => n < k,
+        equals: (n, k) => n === k,
+        divisibleBy: (n, k) => k !== 0 && n % k === 0,
+        notDivisibleBy: (n, k) => k !== 0 && n % k !== 0,
+        lastDigitIs: (n, d) => lastDigit(n) === d,
+        sumDigitsEven: (n) => sumDigits(n) % 2 === 0,
+        isPrime: isPrime,
+        isMultipleOf: (n, k) => k !== 0 && n % k === 0,
+        inRange: (n, a, b) => n >= a && n <= b
+      };
+
+      // ====== OPERATIONS ======
+      const OPERATIONS = {
+        add: (n, k) => clamp(n + k),
+        subtract: (n, k) => clamp(Math.max(0, n - k)),
+        multiply: (n, k) => clamp(n * k),
+        divide: (n, k) => k !== 0 && n % k === 0 ? clamp(n / k) : n,
+        addSumDigits: (n) => clamp(n + sumDigits(n)),
+        reverseDigits: (n) => clamp(reverseDigits(n)),
+        subtractLastDigit: (n) => clamp(n - lastDigit(n)),
+        absDiff: (n, k) => clamp(Math.abs(n - k)),
+        replaceLastDigit: (n, d) => {
+          const abs = Math.abs(n);
+          const sign = n < 0 ? -1 : 1;
+          const str = abs.toString();
+          const newStr = str.slice(0, -1) + d.toString();
+          return clamp(parseInt(newStr) * sign);
+        }
+      };
+
+      // ====== CANONICAL RULES ======
+      const CANONICAL_RULES = [
+        // Nivel 1
+        {
+          id: "rule1",
+          name: "Regla 1",
+          level: 1,
+          rules: [
+            { condition: (n) => CONDITIONS.isEven(n), operation: (n) => OPERATIONS.divide(n, 2), desc: "Si es par → ÷2" },
+            { condition: (n) => CONDITIONS.isOdd(n), operation: (n) => OPERATIONS.add(n, 1), desc: "Si es impar → +1" }
+          ]
+        },
+        {
+          id: "rule2",
+          name: "Regla 2",
+          level: 2,
+          rules: [
+            { condition: (n) => CONDITIONS.isEven(n), operation: (n) => OPERATIONS.subtract(n, 2), desc: "Si es par → −2" },
+            { condition: (n) => CONDITIONS.isOdd(n), operation: (n) => OPERATIONS.add(n, 3), desc: "Si es impar → +3" }
+          ]
+        },
+        // Nivel 2
+        {
+          id: "rule3",
+          name: "Regla 3",
+          level: 3,
+          rules: [
+            { condition: (n) => CONDITIONS.isEven(n), operation: (n) => OPERATIONS.divide(n, 2), desc: "Si es par → ÷2" },
+            { condition: (n) => CONDITIONS.isOdd(n), operation: (n) => clamp(n * 2 + 1), desc: "Si es impar → ×2 +1" }
+          ]
+        },
+        {
+          id: "rule4",
+          name: "Regla 4",
+          level: 4,
+          rules: [
+            { condition: (n) => CONDITIONS.lastDigitIs(n, 5), operation: (n) => OPERATIONS.subtract(n, 5), desc: "Si termina en 5 → −5" },
+            { condition: (n) => true, operation: (n) => OPERATIONS.add(n, 1), desc: "Si no → +1" }
+          ]
+        },
+        // Nivel 3
+        {
+          id: "rule5",
+          name: "Regla 5",
+          level: 5,
+          rules: [
+            { condition: (n) => CONDITIONS.divisibleBy(n, 3), operation: (n) => OPERATIONS.divide(n, 3), desc: "Si es múltiplo de 3 → ÷3" },
+            { condition: (n) => true, operation: (n) => OPERATIONS.add(n, 2), desc: "Si no → +2" }
+          ]
+        },
+        {
+          id: "rule6",
+          name: "Regla 6",
+          level: 6,
+          rules: [
+            { condition: (n) => CONDITIONS.sumDigitsEven(n), operation: (n) => OPERATIONS.addSumDigits(n), desc: "Si suma de dígitos es par → +sumDigits(n)" },
+            { condition: (n) => true, operation: (n) => OPERATIONS.subtract(n, 1), desc: "Si no → −1" }
+          ]
+        },
+        // Nivel 4
+        {
+          id: "rule7",
+          name: "Regla 7",
+          level: 7,
+          rules: [
+            { condition: (n) => CONDITIONS.isPrime(n), operation: (n) => OPERATIONS.add(n, 2), desc: "Si es primo → +2" },
+            { condition: (n) => CONDITIONS.isEven(n), operation: (n) => OPERATIONS.divide(n, 2), desc: "Si es par → ÷2" },
+            { condition: (n) => true, operation: (n) => OPERATIONS.add(n, 1), desc: "Si no → +1" }
+          ]
+        },
+        {
+          id: "rule8",
+          name: "Regla 8",
+          level: 8,
+          rules: [
+            { condition: (n) => CONDITIONS.greaterThan(n, 20), operation: (n) => OPERATIONS.subtract(n, 10), desc: "Si n > 20 → −10" },
+            { condition: (n) => CONDITIONS.isEven(n), operation: (n) => OPERATIONS.add(n, 4), desc: "Si n ≤ 20 y es par → +4" },
+            { condition: (n) => true, operation: (n) => OPERATIONS.add(n, 3), desc: "Si no → +3" }
+          ]
+        },
+        // Nivel 5
+        {
+          id: "rule9",
+          name: "Regla 9",
+          level: 9,
+          rules: [
+            { condition: (n) => CONDITIONS.isEven(n) && CONDITIONS.greaterThan(n, 10), operation: (n) => OPERATIONS.divide(n, 2), desc: "Si es par y >10 → ÷2" },
+            { condition: (n) => CONDITIONS.isOdd(n) && CONDITIONS.isPrime(n), operation: (n) => OPERATIONS.add(n, 5), desc: "Si es impar y primo → +5" },
+            { condition: (n) => true, operation: (n) => OPERATIONS.add(n, 1), desc: "Si no → +1" }
+          ]
+        }
+      ];
+
+      // ====== LEVEL CONFIGS ======
+      // Estructura: { steps: [min, max], complexity: C (número de condiciones), startRange: [min, max], maxRuleLevel }
+      const LEVEL_CONFIGS = [
+        null,
+        { steps: [2, 3], complexity: 2, startRange: [5, 15], maxRuleLevel: 1 }, // Nivel 1: solo reglas nivel 1
+        { steps: [2, 3], complexity: 2, startRange: [5, 15], maxRuleLevel: 2 }, // Nivel 2: reglas nivel 1-2
+        { steps: [3, 4], complexity: 2, startRange: [8, 20], maxRuleLevel: 3 }, // Nivel 3: reglas nivel 1-3
+        { steps: [3, 4], complexity: 3, startRange: [8, 20], maxRuleLevel: 4 }, // Nivel 4: reglas nivel 1-4 (permite 3 ramas)
+        { steps: [3, 5], complexity: 3, startRange: [10, 25], maxRuleLevel: 5 }, // Nivel 5: reglas nivel 1-5
+        { steps: [3, 5], complexity: 3, startRange: [10, 25], maxRuleLevel: 6 }, // Nivel 6: reglas nivel 1-6
+        { steps: [4, 6], complexity: 3, startRange: [12, 30], maxRuleLevel: 7 }, // Nivel 7: reglas nivel 1-7
+        { steps: [4, 6], complexity: 3, startRange: [12, 30], maxRuleLevel: 8 }, // Nivel 8: reglas nivel 1-8
+        { steps: [5, 7], complexity: 3, startRange: [15, 30], maxRuleLevel: 9 }, // Nivel 9: reglas nivel 1-9
+        { steps: [5, 7], complexity: 3, startRange: [15, 30], maxRuleLevel: 10 }  // Nivel 10: reglas nivel 1-10
+      ];
+      
+      // ====== RULES: SELECCIÓN ACUMULATIVA PONDERADA ======
+      function selectRuleAccumulative(level, config){
+        // Filtrar reglas elegibles: nivel <= maxRuleLevel y branches compatible
+        const maxBranches = config.complexity; // complexity = número de ramas máximo
+        const candidates = CANONICAL_RULES.filter(r => 
+          r.level <= config.maxRuleLevel && r.rules.length <= maxBranches
+        );
+        
+        if(candidates.length === 0) return null;
+        
+        // Calcular pesos: proximityWeight = exp(-alpha*(L - ruleLevel))
+        // alpha ~0.35 hace que reglas del nivel actual tengan peso ~1.0
+        // y reglas de niveles anteriores tengan peso exponencialmente menor
+        const alpha = 0.35;
+        const weights = candidates.map(r => {
+          const levelDiff = level - r.level;
+          const proximityWeight = Math.exp(-alpha * levelDiff);
+          return proximityWeight;
+        });
+        
+        // Selección ponderada
+        const totalWeight = weights.reduce((sum, w) => sum + w, 0);
+        let random = Math.random() * totalWeight;
+        
+        for(let i = 0; i < candidates.length; i++){
+          random -= weights[i];
+          if(random <= 0){
+            return candidates[i];
+          }
+        }
+        
+        return candidates[candidates.length - 1];
+      }
+
+      // ====== SIMULATION ======
+      function applyRule(n, rule){
+        for(let r of rule.rules){
+          if(r.condition(n)){
+            return r.operation(n);
+          }
+        }
+        return n; // Fallback
+      }
+
+      function simulate(start, rule, steps){
+        const sequence = [start];
+        let current = start;
+        for(let i = 0; i < steps; i++){
+          current = applyRule(current, rule);
+          sequence.push(current);
+        }
+        return { final: current, sequence };
+      }
+
+      // ====== DISTRACTOR GENERATION ======
+      function generateDistractors(correct, rule, steps, start){
+        const distractors = new Set();
+        
+        // Error en un paso intermedio (aplicar mal una condición)
+        if(steps > 1){
+          const wrongStep = Math.floor(Math.random() * steps);
+          let wrongSim = simulate(start, rule, wrongStep);
+          // Aplicar la operación incorrecta (intercambiar condiciones)
+          const wrongRule = { ...rule, rules: rule.rules.slice().reverse() };
+          wrongSim = simulate(wrongSim.final, wrongRule, steps - wrongStep);
+          if(wrongSim.final !== correct && wrongSim.final >= MIN_NUMBER && wrongSim.final <= MAX_NUMBER){
+            distractors.add(wrongSim.final);
+          }
+        }
+        
+        // Resultado correcto ±1 o ±2
+        const plus1 = clamp(correct + 1);
+        const minus1 = clamp(correct - 1);
+        if(plus1 !== correct && plus1 >= MIN_NUMBER) distractors.add(plus1);
+        if(minus1 !== correct && minus1 >= MIN_NUMBER) distractors.add(minus1);
+        
+        const plus2 = clamp(correct + 2);
+        const minus2 = clamp(correct - 2);
+        if(plus2 !== correct && plus2 >= MIN_NUMBER && plus2 <= MAX_NUMBER) distractors.add(plus2);
+        if(minus2 !== correct && minus2 >= MIN_NUMBER) distractors.add(minus2);
+        
+        // Resultado tras N-1 pasos
+        if(steps > 1){
+          const nMinus1 = simulate(start, rule, steps - 1);
+          if(nMinus1.final !== correct && nMinus1.final >= MIN_NUMBER && nMinus1.final <= MAX_NUMBER){
+            distractors.add(nMinus1.final);
+          }
+        }
+        
+        // Convertir a array y filtrar
+        let distArray = Array.from(distractors).filter(n => n !== correct && n >= MIN_NUMBER && n <= MAX_NUMBER);
+        
+        // Asegurar al menos 3 distractores
+        while(distArray.length < 3){
+          const offset = Math.floor(Math.random() * 20) - 10;
+          const random = clamp(correct + offset);
+          if(!distArray.includes(random) && random !== correct && random >= MIN_NUMBER && random <= MAX_NUMBER){
+            distArray.push(random);
+          }
+          if(distArray.length >= 10) break; // Evitar loop infinito
+        }
+        
+        return distArray.slice(0, 3); // 3 distractores + 1 correcto = 4 opciones totales
+      }
+
+      // ====== ROUND GENERATION ======
+      function generateRound(level){
+        const config = LEVEL_CONFIGS[level];
+        if(!config) return null;
+
+        // Seleccionar regla usando selección acumulativa ponderada
+        let ruleTemplate = selectRuleAccumulative(level, config);
+        if(!ruleTemplate) return null;
+        
+        // Si la regla tiene instantiate(), instanciarla (parametrizada)
+        let rule;
+        if(ruleTemplate.instantiate){
+          const instance = ruleTemplate.instantiate(level);
+          rule = {
+            id: ruleTemplate.id,
+            name: ruleTemplate.name || ruleTemplate.id,
+            level: ruleTemplate.level,
+            rules: instance.rules,
+            displayText: instance.displayText // Guardar displayText para renderizado
+          };
+        }else{
+          // Regla fija
+          rule = ruleTemplate;
+        }
+
+        // Seleccionar número inicial
+        const [minStart, maxStart] = config.startRange;
+        let startNumber;
+        let steps;
+        let sim;
+        let attempts = 0;
+        
+        do {
+          startNumber = minStart + Math.floor(Math.random() * (maxStart - minStart + 1));
+          // Seleccionar steps del rango [min, max]
+          const [minSteps, maxSteps] = config.steps;
+          steps = minSteps + Math.floor(Math.random() * (maxSteps - minSteps + 1));
+          sim = simulate(startNumber, rule, steps);
+          attempts++;
+          
+          // Verificar que no siempre cae en la misma condición
+          const sequence = sim.sequence;
+          const conditions = sequence.slice(0, -1).map(n => {
+            for(let i = 0; i < rule.rules.length; i++){
+              if(rule.rules[i].condition(n)) return i;
+            }
+            return -1;
+          });
+          const uniqueConditions = new Set(conditions);
+          
+          if(uniqueConditions.size >= Math.min(2, rule.rules.length) && attempts < 50){
+            break;
+          }
+        } while(attempts < 50);
+
+        // Generar distractores
+        const distractors = generateDistractors(sim.final, rule, steps, startNumber);
+        const options = [sim.final, ...distractors];
+        
+        // Mezclar opciones
+        for(let i = options.length - 1; i > 0; i--){
+          const j = Math.floor(Math.random() * (i + 1));
+          [options[i], options[j]] = [options[j], options[i]];
+        }
+        
+        const correctIndex = options.indexOf(sim.final);
+
+        const complexity = rule.rules.length; // Número de condiciones
+        
+        return {
+          rule,
+          startNumber,
+          steps,
+          complexity,
+          correctAnswer: sim.final,
+          sequence: sim.sequence,
+          options,
+          correctIndex,
+          startTime: performance.now()
+        };
+      }
+
+      // ====== RENDERING ======
+      function renderRules(rule){
+        // Usar displayText si está disponible (para reglas parametrizadas)
+        if(rule.displayText){
+          return rule.displayText.split('\n').map(line => {
+            const parts = line.split('→');
+            if(parts.length === 2){
+              return `
+                <div class="ruleItem">
+                  <span class="condition">${parts[0].trim()}</span>
+                  <span> → </span>
+                  <span class="operation">${parts[1].trim()}</span>
+                </div>
+              `;
+            }
+            return `<div class="ruleItem">${line.trim()}</div>`;
+          }).join('');
+        }
+        // Fallback: construir desde rules
+        return rule.rules.map(r => `
+          <div class="ruleItem">
+            <span class="condition">${r.desc.split('→')[0]}</span>
+            <span> → </span>
+            <span class="operation">${r.desc.split('→')[1]}</span>
+          </div>
+        `).join('');
+      }
+
+      function renderRound(round){
+        stage.innerHTML = `
+          <div class="rulesBox">
+            <h3>Reglas</h3>
+            ${renderRules(round.rule)}
+          </div>
+          
+          <div class="problemBox">
+            <div style="font-size:14px; color:var(--muted); margin-bottom:8px;">Número inicial</div>
+            <div class="startNumber">${round.startNumber}</div>
+            <div class="steps">Aplicar ${round.steps} ${round.steps === 1 ? 'paso' : 'pasos'}</div>
+          </div>
+          
+          <div class="hint">¿Cuál es el resultado final?</div>
+          
+          <div class="optionsGrid" id="optionsGrid"></div>
+        `;
+
+        const optionsGrid = document.getElementById("optionsGrid");
+        round.options.forEach((opt, idx) => {
+          const btn = document.createElement("button");
+          btn.className = "optionBtn";
+          btn.textContent = opt;
+          btn.addEventListener("click", () => handleAnswer(idx, round, btn));
+          optionsGrid.appendChild(btn);
+        });
+      }
+
+      // ====== GAME LOGIC ======
+      let currentRound = null;
+      let running = false;
+      let timeLeft = SESSION_TIME_SECONDS;
+      let score = 0;
+      let correct = 0;
+      let wrong = 0;
+      let sessionRounds = [];
+      let sessionTimerHandle = null;
+
+      function handleAnswer(optionIndex, round, btn){
+        if(!running) return;
+        
+        const isCorrect = optionIndex === round.correctIndex;
+        const reactionTime = performance.now() - round.startTime;
+        
+        // Calcular puntaje usando nueva fórmula
+        const points = calculateScore(isCorrect, appState.currentLevel, round.steps, round.complexity, reactionTime);
+        
+        // Deshabilitar botones
+        document.querySelectorAll(".optionBtn").forEach(b => b.disabled = true);
+        
+        // Marcar respuesta
+        if(isCorrect){
+          btn.classList.add("correct");
+          score += points;
+          correct++;
+          showToast(`¡Correcto! +${points}`);
+        }else{
+          btn.classList.add("incorrect");
+          document.querySelectorAll(".optionBtn")[round.correctIndex].classList.add("correct");
+          score += points; // points es negativo
+          wrong++;
+          showToast(`Incorrecto ${points}`);
+        }
+        
+        // Guardar round con toda la información
+        const roundData = {
+          ruleId: round.rule.id,
+          ruleStructure: round.rule.name,
+          level: appState.currentLevel,
+          steps: round.steps,
+          complexity: round.complexity,
+          startNumber: round.startNumber,
+          correct: isCorrect,
+          reactionTime,
+          points,
+          chosenOption: round.options[optionIndex],
+          correctAnswer: round.correctAnswer,
+          errorType: isCorrect ? null : "operation"
+        };
+        sessionRounds.push(roundData);
+        appState.rounds.push(roundData);
+        appState.attempts++;
+        
+        renderHUD();
+        
+        // Siguiente round después de delay
+        setTimeout(() => {
+          if(running){
+            currentRound = generateRound(appState.currentLevel);
+            if(currentRound){
+              renderRound(currentRound);
+            }else{
+              showToast("Error generando round");
+            }
+          }
+        }, 300);
+      }
+
+      function startSession(){
+        if(running) return;
+        running = true;
+        timeLeft = SESSION_TIME_SECONDS;
+        score = 0;
+        correct = 0;
+        wrong = 0;
+        sessionRounds = [];
+        
+        btnStart.disabled = true;
+        btnStop.disabled = false;
+        
+        // Iniciar temporizador
+        sessionTimerHandle = setInterval(tick, 100);
+        
+        currentRound = generateRound(appState.currentLevel);
+        if(currentRound){
+          renderRound(currentRound);
+        }
+        
+        renderHUD();
+      }
+
+      function endSession(manual = false){
+        if(!running) return;
+        running = false;
+        
+        // Detener temporizador
+        if(sessionTimerHandle){
+          clearInterval(sessionTimerHandle);
+          sessionTimerHandle = null;
+        }
+        
+        btnStart.disabled = false;
+        btnStop.disabled = true;
+        
+        // Guardar sesión
+        const sessionData = {
+          date: Date.now(),
+          level: appState.currentLevel,
+          score,
+          correct,
+          wrong,
+          accuracy: (correct + wrong) > 0 ? correct / (correct + wrong) : 0,
+          avgRT: sessionRounds.reduce((sum, r) => sum + r.reactionTime, 0) / sessionRounds.length || 0,
+          rounds: sessionRounds
+        };
+        appState.sessions.push(sessionData);
+        appState.lastSession = sessionData;
+        
+        // Ajustar nivel
+        adjustLevel();
+        
+        // Guardar nivel actual
+        saveState();
+        renderHUD();
+        renderStats();
+        
+        if(!manual){
+          showToast("Tiempo agotado");
+        }else{
+          showToast("Sesión completada");
+        }
+      }
+
+      function adjustLevel(){
+        const level = appState.currentLevel;
+        const items = sessionRounds.length;
+        const minItems = getMinItems(level);
+        
+        // Solo ajustar si hay suficientes ítems
+        if(items < minItems){
+          return; // No cambia de nivel
+        }
+        
+        const accuracy = correct / items;
+        const scoreSession = score;
+        
+        // Umbrales para el nivel actual
+        const accUp = getAccUp(level);
+        const scoreUp = getScoreUp(level);
+        const accDown = getAccDown(level);
+        const scoreDown = getScoreDown(level);
+        
+        // Condición de SUBIR: accuracy >= AccUp(L) Y scoreSession >= ScoreUp(L)
+        if(level < 10 && accuracy >= accUp && scoreSession >= scoreUp){
+          appState.currentLevel++;
+          if(appState.currentLevel > appState.maxLevel){
+            appState.maxLevel = appState.currentLevel;
+          }
+          showToast(`¡Subiste al nivel ${appState.currentLevel}!`);
+        }
+        // Condición de BAJAR: accuracy <= AccDown(L) O scoreSession <= ScoreDown(L)
+        else if(level > 1 && (accuracy <= accDown || scoreSession <= scoreDown)){
+          appState.currentLevel--;
+          showToast(`Bajaste al nivel ${appState.currentLevel}`);
+        }
+      }
+
+      function tick(){
+        if(!running) return;
+        timeLeft = Math.max(0, timeLeft - 0.1);
+        renderHUD();
+        if(timeLeft <= 0){
+          endSession(false);
+        }
+      }
+
+      function fmt1(x){ return (Math.round(x*10)/10).toFixed(1); }
+
+      function renderHUD(){
+        vLevel.textContent = appState.currentLevel;
+        vScore.textContent = Math.round(score);
+        vTime.textContent = fmt1(timeLeft);
+        
+        // Cambiar color del tiempo cuando queda poco
+        const timePill = vTime.closest('.pill');
+        if(timePill){
+          if(timeLeft <= 30){
+            timePill.style.color = "var(--bad)";
+          }else if(timeLeft <= 60){
+            timePill.style.color = "var(--warn)";
+          }else{
+            timePill.style.color = "var(--text)";
+          }
+        }
+        
+        // Cambiar color del puntaje
+        const scorePill = vScore.closest('.pill');
+        if(scorePill){
+          if(score > 0){
+            scorePill.style.color = "var(--good)";
+          }else if(score < 0){
+            scorePill.style.color = "var(--bad)";
+          }else{
+            scorePill.style.color = "var(--text)";
+          }
+        }
+        
+        const total = correct + wrong;
+        vAcc.textContent = total > 0 ? `${Math.round((correct / total) * 100)}%` : "—";
+      }
+
+      function renderStats(){
+        sCurLevel.textContent = appState.currentLevel;
+        sMaxLevel.textContent = appState.maxLevel;
+        sAttempts.textContent = appState.attempts;
+        
+        if(appState.lastSession){
+          sLastScore.textContent = appState.lastSession.score;
+          sLastCE.textContent = `${appState.lastSession.correct} / ${appState.lastSession.wrong}`;
+          sLastAcc.textContent = `${(appState.lastSession.accuracy * 100).toFixed(1)}%`;
+          sLastRT.textContent = `${(appState.lastSession.avgRT / 1000).toFixed(2)}s`;
+        }else{
+          sLastScore.textContent = "—";
+          sLastCE.textContent = "—";
+          sLastAcc.textContent = "—";
+          sLastRT.textContent = "—";
+        }
+        
+        // Precisión por regla
+        const ruleStats = {};
+        appState.rounds.forEach(r => {
+          if(!ruleStats[r.ruleId]) ruleStats[r.ruleId] = { total: 0, correct: 0 };
+          ruleStats[r.ruleId].total++;
+          if(r.correct) ruleStats[r.ruleId].correct++;
+        });
+        
+        const ruleText = Object.entries(ruleStats)
+          .map(([rule, stats]) => `${rule}: ${((stats.correct / stats.total) * 100).toFixed(1)}%`)
+          .join(" | ");
+        accByRule.textContent = ruleText || "—";
+        
+        // Gráfico
+        drawScoresChart();
+        sSessionsCount.textContent = appState.sessions.length;
+        
+        const bestScore = appState.sessions.length > 0
+          ? Math.max(...appState.sessions.map(s => s.score))
+          : 0;
+        sBestEver.textContent = bestScore > 0 ? bestScore : "—";
+      }
+
+      function drawScoresChart(){
+        const canvas = scoresChart;
+        const ctx = canvas.getContext("2d");
+        const w = canvas.width;
+        const h = canvas.height;
+        
+        ctx.clearRect(0, 0, w, h);
+        
+        if(appState.sessions.length === 0) return;
+        
+        const sessions = appState.sessions.slice(-30);
+        const maxScore = Math.max(10, ...sessions.map(s => s.score));
+        const minScore = 0;
+        const range = maxScore - minScore || 1;
+        
+        ctx.strokeStyle = "#35d07f";
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        
+        sessions.forEach((session, i) => {
+          const x = (i / (sessions.length - 1 || 1)) * (w - 40) + 20;
+          const y = h - 20 - ((session.score - minScore) / range) * (h - 40);
+          
+          if(i === 0) ctx.moveTo(x, y);
+          else ctx.lineTo(x, y);
+        });
+        
+        ctx.stroke();
+      }
+
+      function showToast(msg){
+        toast.textContent = msg;
+        toast.classList.add("show");
+        setTimeout(() => toast.classList.remove("show"), 2000);
+      }
+
+      function resetStats(){
+        if(!confirm("¿Borrar todas las estadísticas?")) return;
+        appState = {
+          currentLevel: 1,
+          maxLevel: 1,
+          attempts: 0,
+          lastSession: null,
+          sessions: [],
+          rounds: []
+        };
+        saveState();
+        renderHUD();
+        renderStats();
+        showToast("Estadísticas borradas");
+      }
+
+      // ====== UI ELEMENTS ======
+      const el = (id) => document.getElementById(id);
+
+      const stage = el("stage");
+      const vLevel = el("vLevel");
+      const vScore = el("vScore");
+      const vTime = el("vTime");
+      const vAcc = el("vAcc");
+
+      const btnStart = el("btnStart");
+      const btnStop = el("btnStop");
+      const btnRestart = el("btnRestart");
+      const btnResetStats = el("btnResetStats");
+      const btnToggleView = el("btnToggleView");
+
+      const sCurLevel = el("sCurLevel");
+      const sMaxLevel = el("sMaxLevel");
+      const sAttempts = el("sAttempts");
+      const sLastScore = el("sLastScore");
+      const sLastCE = el("sLastCE");
+      const sLastAcc = el("sLastAcc");
+      const sLastRT = el("sLastRT");
+      const accByRule = el("accByRule");
+      const scoresChart = el("scoresChart");
+      const sSessionsCount = el("sSessionsCount");
+      const sBestEver = el("sBestEver");
+
+      const toast = el("toast");
+
+      // ====== EVENT LISTENERS ======
+      btnStart.addEventListener("click", startSession);
+      btnStop.addEventListener("click", () => endSession(true));
+      btnRestart.addEventListener("click", () => {
+        if(confirm("¿Reiniciar el juego?")){
+          appState.currentLevel = 1;
+          saveState();
+          renderHUD();
+          showToast("Juego reiniciado");
+        }
+      });
+      btnResetStats.addEventListener("click", resetStats);
+      
+      btnToggleView.addEventListener("click", () => {
+        document.querySelector(".card.stats").classList.toggle("show");
+      });
+
+      // ====== INIT ======
+      renderHUD();
+      renderStats();
+    })();
+  </script>
+</body>
+</html>
+

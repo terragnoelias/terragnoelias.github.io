@@ -1,229 +1,1252 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="es">
 <head>
-<meta charset="UTF-8" />
-<title>PASAT n-back (visual con respuesta por micrófono)</title>
-<style>
-  body { font-family: system-ui; background: #f4f7fb; margin: 0; padding: 2rem; }
-  label { display: block; margin: .5rem 0; }
-  button { margin: .8rem .4rem .8rem 0; padding: .4rem 1rem; font-size: 1rem; }
-  #log, #inputBox { margin-top: 2rem; background: #fff; padding: 1rem; border-radius: .4rem;
-                   font-family: monospace; white-space: pre-wrap; }
-  #inputBox { display: none; }
-  #inputBox input { width: 100%; padding: .4rem; font-family: monospace; font-size: 1rem; }
-  #graphBox, #tableBox { display: none; margin-top: 2rem; }
-  #historyTable { border-collapse: collapse; width: 100%; }
-  #historyTable th, #historyTable td {
-    border: 1px solid #ccc; padding: .4rem; text-align: center;
-    vertical-align: top; font-family: monospace; white-space: pre-wrap;
-  }
-  #historyTable th { background: #e8eaf0; }
-  .err { color: #c62828; font-weight: bold; }
-  #displayBox { font-family: monospace; font-size: 4rem; text-align: center;
-                 margin-top: 1rem; visibility: hidden; }
-</style>
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>PVSAT Visual Trainer (por cantidad)</title>
+  <style>
+    :root{
+      --bg0:#0b1220;
+      --bg1:#0f1b33;
+      --card: rgba(255,255,255,.06);
+      --card2: rgba(255,255,255,.09);
+      --text:#e9eefc;
+      --muted: rgba(233,238,252,.7);
+      --good:#35d07f;
+      --bad:#ff4d6d;
+      --warn:#ffd166;
+      --shadow: 0 18px 40px rgba(0,0,0,.35);
+      --ring: 0 0 0 3px rgba(120,160,255,.28);
+      --radius: 18px;
+      --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+      --sans: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, "Helvetica Neue", Arial, "Noto Sans", "Liberation Sans", sans-serif;
+    }
+    *{box-sizing:border-box}
+    body{
+      margin:0;
+      font-family: var(--sans);
+      color: var(--text);
+      background:
+        radial-gradient(1200px 800px at 15% 10%, rgba(80,130,255,.35), transparent 60%),
+        radial-gradient(900px 700px at 85% 30%, rgba(255,120,170,.25), transparent 55%),
+        radial-gradient(900px 900px at 50% 100%, rgba(60,240,190,.18), transparent 55%),
+        linear-gradient(180deg, var(--bg0), var(--bg1));
+      min-height:100vh;
+      display:flex;
+      justify-content:center;
+      padding:28px 16px;
+    }
+    .wrap{
+      width:min(980px, 100%);
+      display:grid;
+      grid-template-columns: 1.2fr .8fr;
+      gap:18px;
+    }
+    @media (max-width: 880px){ .wrap{grid-template-columns: 1fr; } }
+    .card{
+      background: var(--card);
+      border:1px solid rgba(255,255,255,.09);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(10px);
+      overflow:hidden;
+    }
+    .hd{
+      padding:16px 18px;
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:12px;
+      border-bottom:1px solid rgba(255,255,255,.08);
+      background: linear-gradient(180deg, rgba(255,255,255,.06), transparent);
+    }
+    .title{ display:flex; flex-direction:column; gap:2px; }
+    .title h1{ margin:0; font-size:16px; letter-spacing:.2px; font-weight:700; }
+    .title .sub{ font-size:12px; color: var(--muted); }
+    .pillrow{display:flex; flex-wrap:wrap; gap:8px; align-items:center; justify-content:flex-end;}
+    .pill{
+      padding:8px 10px;
+      border-radius:999px;
+      background: var(--card2);
+      border:1px solid rgba(255,255,255,.10);
+      font-family: var(--mono);
+      font-size:12px;
+      color: var(--text);
+      white-space:nowrap;
+    }
+    .pill b{font-weight:900}
+
+    .main{ padding:18px; display:grid; gap:14px; }
+
+    .controls{ display:flex; gap:10px; flex-wrap:wrap; justify-content:space-between; align-items:center; }
+    .btnrow{display:flex; gap:10px; flex-wrap:wrap;}
+    .btn{
+      cursor:pointer;
+      padding:10px 12px;
+      border-radius: 12px;
+      border:1px solid rgba(255,255,255,.12);
+      background: rgba(255,255,255,.07);
+      color: var(--text);
+      font-weight:700;
+      font-size: 13px;
+      transition: background .12s ease, transform .06s ease;
+    }
+    .btn:hover{ background: rgba(255,255,255,.10); transform: translateY(-1px); }
+    .btn:active{ transform: translateY(1px); }
+    .btn.primary{
+      background: linear-gradient(180deg, rgba(120,160,255,.35), rgba(120,160,255,.15));
+      border-color: rgba(120,160,255,.55);
+    }
+    .btn.danger{
+      background: linear-gradient(180deg, rgba(255,77,109,.22), rgba(255,77,109,.10));
+      border-color: rgba(255,77,109,.45);
+    }
+
+    .badge{
+      display:inline-flex;
+      align-items:center;
+      gap:8px;
+      padding:8px 10px;
+      border-radius: 999px;
+      border:1px solid rgba(255,255,255,.10);
+      background: rgba(255,255,255,.06);
+      font-family: var(--mono);
+      font-size: 12px;
+      color: var(--muted);
+    }
+    .dot{
+      width:10px; height:10px; border-radius:999px;
+      background: rgba(255,255,255,.2);
+      box-shadow: 0 0 0 3px rgba(255,255,255,.06);
+    }
+    .dot.on{ background: var(--good); box-shadow: 0 0 0 3px rgba(53,208,127,.18); }
+
+    .status{
+      display:grid;
+      grid-template-columns: repeat(5, minmax(0,1fr));
+      gap:10px;
+    }
+    @media (max-width: 520px){ .status{grid-template-columns: repeat(2, minmax(0,1fr));} }
+    .stat{
+      padding:10px 12px;
+      border-radius: 14px;
+      background: rgba(255,255,255,.05);
+      border:1px solid rgba(255,255,255,.08);
+      display:flex;
+      flex-direction:column;
+      gap:4px;
+    }
+    .stat .k{font-size:11px; color: var(--muted); font-family: var(--mono);}
+    .stat .v{font-size:18px; font-weight:900; font-family: var(--mono);}
+    .v.good{color: var(--good);}
+    .v.bad{color: var(--bad);}
+    .v.warn{color: var(--warn);}
+
+    .stage{
+      background: rgba(255,255,255,.04);
+      border:1px solid rgba(255,255,255,.08);
+      border-radius: 22px;
+      padding:22px 18px;
+      display:grid;
+      gap:16px;
+      min-height: 360px;
+      position:relative;
+      overflow:hidden;
+    }
+
+    .hint{ text-align:center; color: var(--muted); font-size: 12px; user-select:none; }
+
+    .digitBox{
+      display:grid;
+      place-items:center;
+      padding: 10px 0 0;
+    }
+
+    .digit{
+      width: min(360px, 80%);
+      height: 140px;
+      border-radius: 22px;
+      background: rgba(255,255,255,.06);
+      border: 1px solid rgba(255,255,255,.10);
+      box-shadow: 0 16px 32px rgba(0,0,0,.22);
+      display:grid;
+      place-items:center;
+      font-size: 86px;
+      font-weight: 900;
+      letter-spacing: 1px;
+      user-select:none;
+      transition: opacity .08s ease;
+      font-family: var(--mono);
+    }
+    .digit.hidden{ opacity: 0; }
+
+    .trail{
+      display:flex;
+      justify-content:center;
+      gap:10px;
+      flex-wrap:wrap;
+      color: var(--muted);
+      font-family: var(--mono);
+      font-size: 12px;
+      user-select:none;
+      margin-top:-6px;
+    }
+    .chip{
+      padding:6px 10px;
+      border-radius:999px;
+      background: rgba(255,255,255,.05);
+      border:1px solid rgba(255,255,255,.08);
+    }
+
+    .options{
+      display:grid;
+      grid-template-columns: repeat(2, minmax(0,1fr));
+      gap:12px;
+      margin-top: 6px;
+    }
+    @media (max-width: 520px){ .options{grid-template-columns: 1fr;} }
+
+    button.opt{
+      cursor:pointer;
+      padding:16px 14px;
+      border-radius: 16px;
+      border: 1px solid rgba(255,255,255,.12);
+      background: rgba(255,255,255,.06);
+      color: var(--text);
+      font-size: 22px;
+      font-weight: 900;
+      letter-spacing:.4px;
+      box-shadow: 0 10px 22px rgba(0,0,0,.22);
+      transition: transform .06s ease, background .12s ease, border-color .12s ease;
+      user-select:none;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      min-height: 62px;
+      font-family: var(--mono);
+    }
+    button.opt:hover{ transform: translateY(-1px); background: rgba(255,255,255,.085); }
+    button.opt:active{ transform: translateY(1px) scale(.995); }
+    button.opt:focus-visible{ outline:none; box-shadow: var(--shadow), var(--ring); }
+
+    .small{ font-size:12px; color: var(--muted); line-height:1.35; }
+
+    .toast{
+      position: fixed;
+      left: 50%;
+      bottom: 18px;
+      transform: translateX(-50%);
+      background: rgba(15,27,51,.86);
+      border:1px solid rgba(255,255,255,.12);
+      border-radius: 999px;
+      padding: 10px 14px;
+      box-shadow: 0 18px 40px rgba(0,0,0,.35);
+      font-family: var(--mono);
+      font-size: 12px;
+      color: var(--text);
+      opacity:0;
+      pointer-events:none;
+      transition: opacity .2s ease, transform .2s ease;
+    }
+    .toast.show{ opacity:1; transform: translateX(-50%) translateY(-6px); }
+
+    .flash{ animation: flash .16s ease-out; }
+    @keyframes flash{ from{ transform: scale(1.01); } to{ transform: scale(1.0); } }
+
+    .side{ padding:18px; display:grid; gap:14px; }
+    .panel{
+      padding:14px 14px;
+      border-radius: 16px;
+      background: rgba(255,255,255,.05);
+      border:1px solid rgba(255,255,255,.08);
+      display:grid;
+      gap:10px;
+    }
+    .side h2{ margin:0; font-size:14px; letter-spacing:.2px; }
+    .row{
+      display:flex;
+      justify-content:space-between;
+      gap:12px;
+      align-items:baseline;
+      font-family: var(--mono);
+      font-size:12px;
+      color: var(--muted);
+    }
+    .row b{color: var(--text); font-weight:900;}
+    .small{ font-size:12px; color: var(--muted); line-height:1.35; }
+
+    /* ====== CHART ====== */
+    .chartWrap{ display:grid; gap:10px; }
+    canvas#scoresChart{
+      width:100%;
+      height:160px;
+      border-radius: 14px;
+      background: rgba(255,255,255,.04);
+      border:1px solid rgba(255,255,255,.08);
+    }
+    .chartLegend{
+      display:flex;
+      justify-content:space-between;
+      gap:10px;
+      font-family: var(--mono);
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    /* ===== MOBILE FULLSCREEN MODE ===== */
+    @media (max-width: 880px) {
+      body { padding: 0; }
+      .wrap {
+        width: 100vw;
+        height: 100vh;
+        grid-template-columns: 1fr;
+        gap: 0;
+      }
+      .card {
+        border-radius: 0;
+        height: 100vh;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+      }
+      .card.stats { display: none; }
+      .card.active { display: flex; }
+      .card .hd { padding: 12px 14px; flex-shrink: 0; }
+      .main { 
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+        padding: 12px;
+        gap: 10px;
+      }
+      .controls { flex-shrink: 0; }
+      .status { flex-shrink: 0; }
+      .stage {
+        min-height: unset;
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        padding: 16px 12px;
+        gap: 12px;
+        overflow-y: auto;
+        -webkit-overflow-scrolling: touch;
+      }
+      .digitBox { padding: 8px 0 0; }
+      .digit {
+        width: min(280px, 75%);
+        height: 100px;
+        font-size: 64px;
+      }
+      .trail { margin-top: -4px; gap: 6px; }
+      .chip { padding: 4px 8px; font-size: 11px; }
+      .hint { font-size: 11px; }
+      .options {
+        margin-top: 4px;
+        gap: 10px;
+      }
+      button.opt {
+        padding: 14px 12px;
+        font-size: 20px;
+        min-height: 56px;
+      }
+      .small { font-size: 11px; }
+      .mobile-toggle {
+        position: fixed;
+        top: 10px;
+        right: 10px;
+        z-index: 999;
+        padding: 10px 12px;
+        border-radius: 999px;
+        border: 1px solid rgba(255,255,255,.15);
+        background: rgba(15,27,51,.85);
+        color: var(--text);
+        font-weight: 800;
+        font-size: 12px;
+        backdrop-filter: blur(8px);
+        cursor: pointer;
+        box-shadow: var(--shadow);
+      }
+    }
+  </style>
 </head>
 <body>
-<h2>PASAT visual – configurable con respuesta por micrófono</h2>
+  <div class="wrap">
+    <section class="card game active">
+      <div class="hd">
+        <div class="title">
+          <h1>PVSAT Visual Trainer (por cantidad)</h1>
+          <div class="sub">
+            Sumá <b>anterior + actual</b>. No hay tiempo: termina cuando completás la <b>cantidad</b> del nivel.
+          </div>
+        </div>
+        <div class="pillrow">
+          <div class="pill">Inicio: <b>60</b> respuestas</div>
+          <div class="pill">Subís solo con <b>100%</b> (sin err ni miss)</div>
+        </div>
+      </div>
 
-<label>Cantidad de dígitos:
-  <input id="count" type="number" min="2" value="60">
-</label>
+      <div class="main">
+        <div class="controls">
+          <div class="btnrow">
+            <button class="btn primary" id="btnStart">▶ Iniciar</button>
+            <button class="btn" id="btnStop" disabled>⏹ Detener</button>
+            <button class="btn" id="btnRestart" disabled>↻ Reiniciar</button>
+          </div>
+          <div class="badge">
+            <span class="dot" id="dotRun"></span>
+            <span id="lblState">Listo</span>
+          </div>
+        </div>
 
-<label>Intervalo (ms):
-  <input id="interval" type="number" min="300" value="1000">
-</label>
+        <div class="status">
+          <div class="stat"><div class="k">NIVEL</div><div class="v" id="vLevel">1</div></div>
+          <div class="stat"><div class="k">PUNTAJE</div><div class="v" id="vScore">0</div></div>
+          <div class="stat"><div class="k">PROGRESO</div><div class="v" id="vProg">0/60</div></div>
+          <div class="stat"><div class="k">ACIERTO</div><div class="v" id="vAcc">—</div></div>
+          <div class="stat"><div class="k">RT PROM</div><div class="v" id="vRT">—</div></div>
+        </div>
 
-<label>Parpadeo (% intervalo):
-  <input id="blinkPct" type="number" min="0" max="100" value="20">
-</label>
+        <div class="stage" id="stage">
+          <div class="hint">Desde el 2° dígito, respondés la suma (anterior + actual). Si no respondés antes del próximo dígito: <b>miss</b>.</div>
 
-<label>n-back (1 = clásico):
-  <input id="back" type="number" min="1" value="1">
-</label>
+          <div class="digitBox">
+            <div class="digit" id="digit">—</div>
+          </div>
 
-<button id="startBtn">Iniciar</button>
-<button id="graphBtn">Ver historial</button>
-<button id="tableBtn">Ver tabla</button>
-<button id="clearBtn">Limpiar historial</button>
+          <div class="trail">
+            <span class="chip" id="chipPrev">prev: —</span>
+            <span class="chip" id="chipCur">cur: —</span>
+            <span class="chip" id="chipCfg">—</span>
+          </div>
 
-<div id="log"></div>
-<div id="displayBox"></div>
+          <div class="hint">Elegí la opción correcta (las incorrectas son cercanas).</div>
+          <div class="options" id="options"></div>
 
-<!-- Entrada manual / reconocimiento -->
-<div id="inputBox">
-  <p>Responde verbalmente a cada suma n-back; si prefieres, puedes introducir manualmente:
-     respuestas separadas por coma:</p>
-  <input id="respInput" placeholder="e.g. 7,10,12,11,…">
-  <button id="checkBtn">Calcular puntaje</button>
-  <div id="scoreOut"></div>
-</div>
+          <div class="small">
+            <b>Niveles:</b> alterna dificultad así:
+            <br/>• al subir primero: <b>más rápido + menos visibilidad</b> (2 opciones)
+            <br/>• al subir siguiente: <b>3 opciones</b> (misma velocidad/vis)
+            <br/>y se repite. Además, la <b>cantidad</b> empieza en 60 y sube +1 por nivel.
+          </div>
+        </div>
+      </div>
+    </section>
 
-<div id="graphBox"><canvas id="graphCanvas" width="600" height="300"></canvas></div>
-<div id="tableBox"><table id="historyTable"></table></div>
+    <aside class="card stats">
+      <div class="hd">
+        <div class="title">
+          <h1>Estadísticas</h1>
+          <div class="sub">Se guardan en tu navegador (localStorage).</div>
+        </div>
+        <div class="pillrow">
+          <button class="btn danger" id="btnResetStats">Borrar stats</button>
+        </div>
+      </div>
+
+      <div class="side">
+        <div class="panel">
+          <h2>Progreso</h2>
+          <div class="row"><span>Nivel actual</span><b id="sCurLevel">1</b></div>
+          <div class="row"><span>Mejor nivel</span><b id="sMaxLevel">1</b></div>
+          <div class="row"><span>Intentos</span><b id="sAttempts">0</b></div>
+        </div>
+
+        <div class="panel">
+          <h2>Precisión en el tiempo</h2>
+          <div class="chartWrap">
+            <canvas id="scoresChart" width="900" height="260"></canvas>
+            <div class="chartLegend">
+              <span>Sesiones: <b id="sSessionsCount">0</b></span>
+              <span>Mejor precisión: <b id="sBestEver">—</b></span>
+            </div>
+          </div>
+          <div class="small">Línea = precisión final por sesión (orden cronológico).</div>
+        </div>
+
+        <div class="panel">
+          <h2>Puntaje en el tiempo</h2>
+          <div class="chartWrap">
+            <canvas id="scoreChart" width="900" height="260"></canvas>
+            <div class="chartLegend">
+              <span>Sesiones: <b id="sScoreSessionsCount">0</b></span>
+              <span>Mejor puntaje: <b id="sBestScore">—</b></span>
+            </div>
+          </div>
+          <div class="small">Línea = puntaje final por sesión (orden cronológico).</div>
+        </div>
+
+        <div class="panel">
+          <h2>Última sesión</h2>
+          <div class="row"><span>Puntaje</span><b id="sLastScore">—</b></div>
+          <div class="row"><span>Correct / Wrong / Miss</span><b id="sLastCEM">—</b></div>
+          <div class="row"><span>Precisión</span><b id="sLastAcc">—</b></div>
+          <div class="row"><span>RT prom</span><b id="sLastRT">—</b></div>
+          <div class="row"><span>Config</span><b id="sLastCfg">—</b></div>
+        </div>
+
+        <div class="panel">
+          <h2>Mejor por nivel</h2>
+          <div class="small" id="bestByLevel">—</div>
+        </div>
+
+        <div class="panel">
+          <h2>Próximos niveles</h2>
+          <div class="small" id="lvlExplain">—</div>
+        </div>
+      </div>
+    </aside>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <!-- Botón mobile -->
+  <button class="mobile-toggle" id="btnToggleView">📊 Stats</button>
 
 <script>
-// mapeo palabra->número
-const word2num = { cero:0, uno:1, dos:2, tres:3, cuatro:4, cinco:5,
-  seis:6, siete:7, ocho:8, nueve:9, diez:10, once:11, doce:12,
-  trece:13, catorce:14, quince:15, dieciseis:16, dieciséis:16,
-  diecisiete:17, dieciocho:18 };
-function toNumber(tok){
-  const norm = tok.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
-  if(word2num.hasOwnProperty(norm)) return word2num[norm];
-  const n = parseInt(tok, 10);
-  return isNaN(n) ? null : n;
-}
+(() => {
+  // ========= CONFIG =========
+  // Cantidad base (respuestas/trials)
+  const BASE_TRIALS = 60; // nivel 1
+  // Nivel 1 timing/vis
+  const BASE_INTERVAL_MS = 2000;
+  const BASE_VIS = 0.90;
 
-// reconocimiento de voz
-const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
-let recognizer = null, rawTranscript = '';
-let sessionActive = false;
-if(SpeechRec) {
-  recognizer = new SpeechRec();
-  recognizer.lang = 'es-ES';
-  recognizer.continuous = true;
-  recognizer.onresult = e => {
-    for(let i = e.resultIndex; i < e.results.length; i++){
-      rawTranscript += ' ' + e.results[i][0].transcript
-        .toLowerCase().replace(/y/gi,' ').replace(/[.,;]/g,' ');
-    }
-  };
-  recognizer.onend = () => {
-    if(sessionActive) recognizer.start();
-    else processTranscript(rawTranscript.trim());
-  };
-}
+  // Cada "speed step" (niveles 2,4,6...) ajusta
+  const INTERVAL_STEP_MS = 200;
+  const MIN_INTERVAL_MS = 600;
+  const VIS_STEP = 0.05;
+  const MIN_VIS = 0.35;
 
-// variables de sesión
-let presentedDigits = [], correctAnswers = [], sessionInfo = {};
+  const DIGITS = [1,2,3,4,5,6,7,8,9]; // típico PASAT
+  const SUM_MIN = 2, SUM_MAX = 18;
 
-// iniciar sesión
-document.getElementById('startBtn').onclick = () => {
-  const N = +document.getElementById('count').value;
-  const dt = +document.getElementById('interval').value;
-  const blinkPct = +document.getElementById('blinkPct').value / 100;
-  const k = +document.getElementById('back').value;
-  if(k < 1 || k >= N){ alert('n-back debe ser ≥1 y menor que la cantidad.'); return; }
-
-  presentedDigits = Array.from({length: N}, () => Math.floor(Math.random()*9)+1);
-  correctAnswers = [];
-  rawTranscript = '';
-  sessionInfo = { fecha: new Date().toISOString(), N, dt, k, blinkPct };
-
-  ['inputBox','graphBox','tableBox'].forEach(id =>
-    document.getElementById(id).style.display = 'none'
-  );
-  document.getElementById('startBtn').disabled = true;
-  document.getElementById('log').textContent = '(Preparando reconocimiento y visual…)';
-  document.getElementById('displayBox').style.visibility = 'hidden';
-
-  sessionActive = true;
-  const launch = () => {
-    document.getElementById('log').textContent = '(Comienza en 3 s…)';
-    setTimeout(() => startSequence(N, dt, blinkPct, k), 3000);
-  };
-  if(recognizer) {
-    recognizer.start();
-    recognizer.addEventListener('start', function once(){
-      recognizer.removeEventListener('start', once);
-      launch();
-    });
-  } else launch();
-};
-
-// mostrar secuencia con parpadeo
-function startSequence(N, dt, blinkPct, k){
-  document.getElementById('log').textContent = '(Mostrando secuencia…)';
-  let i=0;
-  const blink = dt * blinkPct;
-  const loop = setInterval(() => {
-    const d = presentedDigits[i];
-    const box = document.getElementById('displayBox');
-    box.style.visibility = 'hidden';
-    setTimeout(() => { box.textContent = d; box.style.visibility = 'visible'; }, blink);
-    if(i >= k) correctAnswers.push(d + presentedDigits[i-k]);
-    i++;
-    if(i === N){ clearInterval(loop); setTimeout(finish, dt); }
-  }, dt);
-}
-
-// finalizar sesión
-function finish(){
-  sessionActive = false;
-  const showResults = () => {
-    const logEl = document.getElementById('log');
-    logEl.textContent =
-      'Dígitos presentados:\n' + presentedDigits.join(', ') +
-      '\n\nRespuestas correctas ('+sessionInfo.k+'-back):\n' + correctAnswers.join(', ');
-    document.getElementById('inputBox').style.display = 'block';
-    document.getElementById('startBtn').disabled = false;
-  };
-  if(recognizer) {
-    setTimeout(() => { recognizer.stop(); showResults(); }, 2000);
-  } else showResults();
-}
-
-// procesar respuestas habladas
-function processTranscript(txt){
-  const spoken = txt.split(/\s+/).map(toNumber).filter(n=>n!==null);
-  const aligned = []; let j=0;
-  for(let i=0; i<correctAnswers.length; i++){
-    if(j<spoken.length && spoken[j]===correctAnswers[i]) aligned[i]=spoken[j++];
-    else{
-      let skip=false;
-      if(j<spoken.length){
-        const ipos = correctAnswers.indexOf(spoken[j], i+1);
-        if(ipos>i && j+1<spoken.length && ipos+1<correctAnswers.length && correctAnswers[ipos+1]===spoken[j+1]) skip=true;
-      }
-      aligned[i] = skip?0:(j<spoken.length?spoken[j++]:0);
+  // ========= STORAGE =========
+  const KEY = "pvsat_visual_trainer_count_v1";
+  function loadState(){
+    try{
+      const raw = localStorage.getItem(KEY);
+      if(!raw) return { currentLevel: 1, maxLevel: 1, attempts: 0, bestByLevel: {}, lastSession: null, sessions: [] };
+      const obj = JSON.parse(raw);
+      return {
+        currentLevel: Math.max(1, obj.currentLevel || 1),
+        maxLevel: Math.max(1, obj.maxLevel || 1),
+        attempts: obj.attempts || 0,
+        bestByLevel: obj.bestByLevel || {},
+        lastSession: obj.lastSession || null,
+        sessions: Array.isArray(obj.sessions) ? obj.sessions : []
+      };
+    }catch{
+      return { currentLevel: 1, maxLevel: 1, attempts: 0, bestByLevel: {}, lastSession: null, sessions: [] };
     }
   }
-  document.getElementById('respInput').value = aligned.join(',');
-  document.getElementById('checkBtn').click();
-}
+  function saveState(){ localStorage.setItem(KEY, JSON.stringify(appState)); }
+  let appState = loadState();
 
-// calcular y guardar puntaje
-function mark(corr,user){ return user.map((n,i)=>n===corr[i]?n:`<span class="err">${n}</span>`).join(', '); }
-document.getElementById('checkBtn').onclick = () => {
-  const user = document.getElementById('respInput').value.split(',').map(s=>+s);
-  let ok=0; for(let i=0;i<correctAnswers.length;i++) if(user[i]===correctAnswers[i]) ok++;
-  const pct = (ok/correctAnswers.length*100).toFixed(1);
-  document.getElementById('scoreOut').textContent = `Aciertos: ${ok}/${correctAnswers.length} (${pct}%)`;
-  document.getElementById('log').innerHTML += '<br><br>Tus respuestas:<br>' + mark(correctAnswers,user);
-  const reg = {...sessionInfo, aciertos:ok, totalCorr:correctAnswers.length, pct, correct:correctAnswers, dicho:user};
-  const hist = JSON.parse(localStorage.getItem('pasatSessions')||'[]'); hist.push(reg);
-  localStorage.setItem('pasatSessions', JSON.stringify(hist));
-};
+  // ========= LEVEL MODEL =========
+  // Patrón pedido:
+  // L1: 2 opciones, speed stage 1
+  // L2: speed+vis (2 opciones), speed stage 2
+  // L3: +3ra opción (speed stage 2)
+  // L4: speed+vis (2 opciones), speed stage 3
+  // L5: +3ra opción (speed stage 3) ...
+  function speedStage(level){ return 1 + Math.floor(level / 2); }
+  function intervalForLevel(level){
+    const st = speedStage(level);
+    return Math.max(MIN_INTERVAL_MS, BASE_INTERVAL_MS - (st - 1) * INTERVAL_STEP_MS);
+  }
+  function visibilityForLevel(level){
+    const st = speedStage(level);
+    return Math.max(MIN_VIS, BASE_VIS - (st - 1) * VIS_STEP);
+  }
+  function optionsCountForLevel(level){
+    return (level >= 3 && (level % 2 === 1)) ? 3 : 2;
+  }
+  function trialsForLevel(level){
+    return BASE_TRIALS + (level - 1); // +1 por nivel
+  }
+  function levelInfo(level){
+    return {
+      interval: intervalForLevel(level),
+      vis: visibilityForLevel(level),
+      opts: optionsCountForLevel(level),
+      trials: trialsForLevel(level),
+      speedStage: speedStage(level)
+    };
+  }
+  function getScoreMultiplier(level){
+    return 1 + (level / 10);
+  }
 
-// gráfico
-document.getElementById('graphBtn').onclick = () => {
-  const data = JSON.parse(localStorage.getItem('pasatSessions')||'[]'); if(!data.length){alert('Sin sesiones guardadas.');return;}
-  data.sort((a,b)=>new Date(a.fecha)-new Date(b.fecha));
-  const labels = data.map(s=>new Date(s.fecha).toLocaleString('es-AR',{day:'2-digit','month':'2-digit','hour':'2-digit','minute':'2-digit'}));
-  const pct    = data.map(s=>s.pct);
-  if(window.pasatChart) pasatChart.destroy();
-  window.pasatChart = new Chart(document.getElementById('graphCanvas'),{type:'line',data:{labels,datasets:[{data:pct,fill:false,tension:0.2}]},options:{scales:{y:{beginAtZero:true,max:100}},plugins:{legend:{display:false}}}});
-  document.getElementById('graphBox').style.display='block'; document.getElementById('tableBox').style.display='none';
-};
+  // ========= UI =========
+  const el = (id) => document.getElementById(id);
 
-// tabla
-document.getElementById('tableBtn').onclick = () => {
-  const data = JSON.parse(localStorage.getItem('pasatSessions')||'[]'); if(!data.length){alert('Sin sesiones guardadas.');return;}
-  data.sort((a,b)=>new Date(b.fecha)-new Date(a.fecha));
-  const tbl = document.getElementById('historyTable'); tbl.innerHTML = '<tr><th>Fecha</th><th>N</th><th>ms</th><th>n-back</th><th>Aciertos</th><th>Total</th><th>%</th><th>Correctos</th><th>Dichos</th></tr>';
-  data.forEach(s=>{
-    const f = new Date(s.fecha).toLocaleString('es-AR',{day:'2-digit','month':'2-digit','year':'2-digit','hour':'2-digit','minute':'2-digit','second':'2-digit'});
-    const row = document.createElement('tr');
-    row.innerHTML = `<td>${f}</td><td>${s.N}</td><td>${s.dt}</td><td>${s.k}</td><td>${s.aciertos}</td><td>${s.totalCorr}</td><td>${s.pct}</td><td>${s.correct.join(', ')}</td><td>${s.dicho.map((n,i)=>n===s.correct[i]?n:`<span class=\"err\">${n}</span>`).join(', ')}</td>`;
-    tbl.appendChild(row);
+  const btnStart = el("btnStart");
+  const btnStop = el("btnStop");
+  const btnRestart = el("btnRestart");
+  const btnResetStats = el("btnResetStats");
+
+  const dotRun = el("dotRun");
+  const lblState = el("lblState");
+
+  const vLevel = el("vLevel");
+  const vScore = el("vScore");
+  const vProg = el("vProg");
+  const vAcc = el("vAcc");
+  const vRT = el("vRT");
+
+  const stage = el("stage");
+  const digitEl = el("digit");
+  const optionsBox = el("options");
+  const chipPrev = el("chipPrev");
+  const chipCur = el("chipCur");
+  const chipCfg = el("chipCfg");
+  const toast = el("toast");
+
+  const sCurLevel = el("sCurLevel");
+  const sMaxLevel = el("sMaxLevel");
+  const sAttempts = el("sAttempts");
+  const sLastScore = el("sLastScore");
+  const sLastCEM = el("sLastCEM");
+  const sLastAcc = el("sLastAcc");
+  const sLastRT = el("sLastRT");
+  const sLastCfg = el("sLastCfg");
+  const bestByLevelEl = el("bestByLevel");
+  const lvlExplainEl = el("lvlExplain");
+
+  const chart = el("scoresChart");
+  const sSessionsCount = el("sSessionsCount");
+  const sBestEver = el("sBestEver");
+
+  const scoreChart = el("scoreChart");
+  const sScoreSessionsCount = el("sScoreSessionsCount");
+  const sBestScore = el("sBestScore");
+
+  function showToast(msg){
+    toast.textContent = msg;
+    toast.classList.add("show");
+    setTimeout(() => toast.classList.remove("show"), 1400);
+  }
+  function setRunningUI(on){
+    dotRun.classList.toggle("on", on);
+    lblState.textContent = on ? "Jugando" : "Listo";
+    btnStart.disabled = on;
+    btnStop.disabled = !on;
+    btnRestart.disabled = !on;
+  }
+  function fmtPct(x){
+    if(!isFinite(x)) return "—";
+    return `${Math.round(x)}%`;
+  }
+
+  function renderStatsPanel(){
+    sCurLevel.textContent = appState.currentLevel;
+    sMaxLevel.textContent = appState.maxLevel;
+    sAttempts.textContent = appState.attempts;
+
+    const ls = appState.lastSession;
+    if(!ls){
+      sLastScore.textContent = "—";
+      sLastCEM.textContent = "—";
+      sLastAcc.textContent = "—";
+      sLastRT.textContent = "—";
+      sLastCfg.textContent = "—";
+    }else{
+      sLastScore.textContent = ls.score != null ? ls.score : "—";
+      sLastCEM.textContent = `${ls.correct} / ${ls.wrong} / ${ls.miss}`;
+      sLastAcc.textContent = fmtPct(ls.accuracy);
+      sLastRT.textContent = (ls.avgRTms != null) ? `${Math.round(ls.avgRTms)} ms` : "—";
+      sLastCfg.textContent = ls.cfg;
+    }
+
+    const keys = Object.keys(appState.bestByLevel).map(n=>parseInt(n,10)).sort((a,b)=>a-b);
+    if(keys.length === 0){
+      bestByLevelEl.textContent = "Todavía no hay récords guardados.";
+    }else{
+      bestByLevelEl.innerHTML = keys.map(k=>{
+        const best = appState.bestByLevel[k];
+        const li = levelInfo(k);
+        return `Nivel <b>${k}</b> — mejor: <b>${best}</b> · ${li.interval}ms · vis ${Math.round(li.vis*100)}% · ${li.opts} ops · ${li.trials} trials`;
+      }).join("<br/>");
+    }
+
+    const cur = appState.currentLevel;
+    const lines = [];
+    for(let lv=cur; lv<=cur+5; lv++){
+      const li = levelInfo(lv);
+      lines.push(`Nivel <b>${lv}</b>: ${li.interval}ms, vis ${Math.round(li.vis*100)}%, opciones ${li.opts}, cantidad ${li.trials}`);
+    }
+    lvlExplainEl.innerHTML = lines.join("<br/>");
+
+    drawScoresChart();
+    drawScoreChart();
+  }
+
+  // ========= CHART =========
+  function drawScoresChart(){
+    if(!chart) return;
+
+    const ctx = chart.getContext("2d");
+    const W = chart.width;
+    const H = chart.height;
+    ctx.clearRect(0,0,W,H);
+
+    const sessions = Array.isArray(appState.sessions) ? appState.sessions : [];
+    const accuracies = sessions.map(s => {
+      if(typeof s.accuracy === "number" && isFinite(s.accuracy)) return s.accuracy;
+      return null;
+    }).filter(x => x !== null);
+
+    sSessionsCount.textContent = String(accuracies.length);
+
+    if(accuracies.length === 0){
+      sBestEver.textContent = "—";
+      ctx.globalAlpha = 0.85;
+      ctx.font = "16px ui-monospace, Menlo, Consolas, monospace";
+      ctx.fillStyle = "rgba(233,238,252,.75)";
+      ctx.fillText("Todavía no hay sesiones guardadas.", 18, 46);
+      ctx.font = "12px ui-monospace, Menlo, Consolas, monospace";
+      ctx.fillStyle = "rgba(233,238,252,.55)";
+      ctx.fillText("Jugá al menos 1 sesión para ver el gráfico.", 18, 70);
+      ctx.globalAlpha = 1;
+      return;
+    }
+
+    const best = Math.max(...accuracies);
+    sBestEver.textContent = `${Math.round(best)}%`;
+
+    const padL = 42, padR = 14, padT = 16, padB = 30;
+    const iw = W - padL - padR;
+    const ih = H - padT - padB;
+
+    let minY = Math.min(...accuracies);
+    let maxY = Math.max(...accuracies);
+    if(minY === maxY){ minY = Math.max(0, minY - 5); maxY = Math.min(100, maxY + 5); }
+    const extra = Math.max(1, (maxY - minY) * 0.1);
+    minY = Math.max(0, minY - extra);
+    maxY = Math.min(100, maxY + extra);
+
+    const xFor = (i) => padL + (iw * (accuracies.length === 1 ? 0 : (i/(accuracies.length-1))));
+    const yFor = (v) => padT + (ih * (1 - ((v - minY) / (maxY - minY))));
+
+    ctx.lineWidth = 1;
+    ctx.strokeStyle = "rgba(255,255,255,.10)";
+    for(let k=0;k<=3;k++){
+      const y = padT + (ih * (k/3));
+      ctx.beginPath(); ctx.moveTo(padL, y); ctx.lineTo(padL+iw, y); ctx.stroke();
+    }
+
+    ctx.strokeStyle = "rgba(255,255,255,.16)";
+    ctx.beginPath(); ctx.moveTo(padL, padT); ctx.lineTo(padL, padT+ih); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(padL, padT+ih); ctx.lineTo(padL+iw, padT+ih); ctx.stroke();
+
+    ctx.fillStyle = "rgba(233,238,252,.65)";
+    ctx.font = "12px ui-monospace, Menlo, Consolas, monospace";
+    ctx.fillText(`${Math.round(maxY)}%`, 8, padT + 12);
+    ctx.fillText(`${Math.round(minY)}%`, 8, padT + ih);
+
+    ctx.lineWidth = 2;
+    ctx.strokeStyle = "rgba(120,160,255,.95)";
+    ctx.beginPath();
+    accuracies.forEach((v,i) => {
+      const x = xFor(i);
+      const y = yFor(v);
+      if(i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
+    });
+    ctx.stroke();
+
+    ctx.fillStyle = "rgba(255,255,255,.9)";
+    accuracies.forEach((v,i) => {
+      const x = xFor(i);
+      const y = yFor(v);
+      ctx.beginPath();
+      ctx.arc(x,y,3,0,Math.PI*2);
+      ctx.fill();
+    });
+
+    ctx.fillStyle = "rgba(233,238,252,.55)";
+    ctx.font = "12px ui-monospace, Menlo, Consolas, monospace";
+    ctx.fillText(`Sesiones (1 … ${accuracies.length})`, padL, H - 10);
+  }
+
+  function drawScoreChart(){
+    if(!scoreChart) return;
+
+    const ctx = scoreChart.getContext("2d");
+    const W = scoreChart.width;
+    const H = scoreChart.height;
+    ctx.clearRect(0,0,W,H);
+
+    const sessions = Array.isArray(appState.sessions) ? appState.sessions : [];
+    const scores = sessions.map(s => {
+      if(typeof s.score === "number" && isFinite(s.score)) return s.score;
+      return null;
+    }).filter(x => x !== null);
+
+    sScoreSessionsCount.textContent = String(scores.length);
+
+    if(scores.length === 0){
+      sBestScore.textContent = "—";
+      ctx.globalAlpha = 0.85;
+      ctx.font = "16px ui-monospace, Menlo, Consolas, monospace";
+      ctx.fillStyle = "rgba(233,238,252,.75)";
+      ctx.fillText("Todavía no hay sesiones guardadas.", 18, 46);
+      ctx.font = "12px ui-monospace, Menlo, Consolas, monospace";
+      ctx.fillStyle = "rgba(233,238,252,.55)";
+      ctx.fillText("Jugá al menos 1 sesión para ver el gráfico.", 18, 70);
+      ctx.globalAlpha = 1;
+      return;
+    }
+
+    const best = Math.max(...scores);
+    sBestScore.textContent = String(best);
+
+    const padL = 42, padR = 14, padT = 16, padB = 30;
+    const iw = W - padL - padR;
+    const ih = H - padT - padB;
+
+    let minY = Math.min(...scores);
+    let maxY = Math.max(...scores);
+    if(minY === maxY){ minY -= 1; maxY += 1; }
+    const extra = Math.max(1, Math.round((maxY - minY) * 0.1));
+    minY -= extra; maxY += extra;
+
+    const xFor = (i) => padL + (iw * (scores.length === 1 ? 0 : (i/(scores.length-1))));
+    const yFor = (v) => padT + (ih * (1 - ((v - minY) / (maxY - minY))));
+
+    ctx.lineWidth = 1;
+    ctx.strokeStyle = "rgba(255,255,255,.10)";
+    for(let k=0;k<=3;k++){
+      const y = padT + (ih * (k/3));
+      ctx.beginPath(); ctx.moveTo(padL, y); ctx.lineTo(padL+iw, y); ctx.stroke();
+    }
+
+    ctx.strokeStyle = "rgba(255,255,255,.16)";
+    ctx.beginPath(); ctx.moveTo(padL, padT); ctx.lineTo(padL, padT+ih); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(padL, padT+ih); ctx.lineTo(padL+iw, padT+ih); ctx.stroke();
+
+    ctx.fillStyle = "rgba(233,238,252,.65)";
+    ctx.font = "12px ui-monospace, Menlo, Consolas, monospace";
+    ctx.fillText(String(Math.round(maxY)), 8, padT + 12);
+    ctx.fillText(String(Math.round(minY)), 8, padT + ih);
+
+    ctx.lineWidth = 2;
+    ctx.strokeStyle = "rgba(53,208,127,.95)";
+    ctx.beginPath();
+    scores.forEach((v,i) => {
+      const x = xFor(i);
+      const y = yFor(v);
+      if(i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
+    });
+    ctx.stroke();
+
+    ctx.fillStyle = "rgba(255,255,255,.9)";
+    scores.forEach((v,i) => {
+      const x = xFor(i);
+      const y = yFor(v);
+      ctx.beginPath();
+      ctx.arc(x,y,3,0,Math.PI*2);
+      ctx.fill();
+    });
+
+    ctx.fillStyle = "rgba(233,238,252,.55)";
+    ctx.font = "12px ui-monospace, Menlo, Consolas, monospace";
+    ctx.fillText(`Sesiones (1 … ${scores.length})`, padL, H - 10);
+  }
+
+  // ========= GAME STATE =========
+  let running = false;
+  let streamHandle = null;
+
+  let prevDigit = null;
+  let curDigit = null;
+
+  let pendingAnswer = false;
+  let correctSum = null;
+  let lastTrialStartAt = null;
+
+  let score = 0;
+  let correct = 0;
+  let wrong = 0;
+  let miss = 0;
+
+  let rtSum = 0;
+  let rtCount = 0;
+
+  let trialsDone = 0;
+  let trialsTarget = BASE_TRIALS;
+
+  // ========= Helpers =========
+  function randInt(n){ return Math.floor(Math.random()*n); }
+  function pickOne(arr){ return arr[randInt(arr.length)]; }
+  function shuffle(a){
+    const arr = a.slice();
+    for(let i=arr.length-1;i>0;i--){
+      const j = Math.floor(Math.random()*(i+1));
+      [arr[i], arr[j]] = [arr[j], arr[i]];
+    }
+    return arr;
+  }
+  function clamp(x, lo, hi){ return Math.max(lo, Math.min(hi, x)); }
+
+  function makeNearDistractor(correctValue, used){
+    const deltas = shuffle([1,2,3]);
+    for(const d of deltas){
+      for(const s of shuffle([-1, +1])){
+        const v = clamp(correctValue + s*d, SUM_MIN, SUM_MAX);
+        if(v !== correctValue && !used.has(v)) return v;
+      }
+    }
+    for(let v=SUM_MIN; v<=SUM_MAX; v++){
+      if(v !== correctValue && !used.has(v)) return v;
+    }
+    return clamp(correctValue+1, SUM_MIN, SUM_MAX);
+  }
+
+  function lockButtons(){
+    optionsBox.querySelectorAll("button").forEach(b => b.disabled = true);
+  }
+
+  function flash(){
+    stage.classList.remove("flash");
+    void stage.offsetWidth;
+    stage.classList.add("flash");
+  }
+
+  function showDigit(value, visibleMs){
+    digitEl.textContent = String(value);
+    digitEl.classList.remove("hidden");
+    setTimeout(() => digitEl.classList.add("hidden"), Math.max(0, visibleMs));
+  }
+
+  function renderOptions(){
+    const li = levelInfo(appState.currentLevel);
+    const optsCount = li.opts;
+
+    optionsBox.innerHTML = "";
+    optionsBox.style.gridTemplateColumns = (window.innerWidth <= 520)
+      ? "1fr"
+      : `repeat(${Math.min(optsCount, 3)}, minmax(0,1fr))`;
+
+    if(!pendingAnswer){
+      for(let i=0;i<optsCount;i++){
+        const b = document.createElement("button");
+        b.className = "opt";
+        b.textContent = "—";
+        b.disabled = true;
+        optionsBox.appendChild(b);
+      }
+      return;
+    }
+
+    const used = new Set([correctSum]);
+    const options = [correctSum];
+    while(options.length < optsCount){
+      const d = makeNearDistractor(correctSum, used);
+      options.push(d);
+      used.add(d);
+    }
+
+    shuffle(options).forEach(val=>{
+      const b = document.createElement("button");
+      b.className = "opt";
+      b.textContent = String(val);
+      b.addEventListener("click", () => onAnswer(val, b));
+      optionsBox.appendChild(b);
+    });
+  }
+
+  function renderHUD(){
+    const li = levelInfo(appState.currentLevel);
+
+    vLevel.textContent = appState.currentLevel;
+    vScore.textContent = score;
+    vProg.textContent = `${trialsDone}/${trialsTarget}`;
+
+    const total = correct + wrong + miss;
+    const acc = total ? (correct/total)*100 : NaN;
+    vAcc.textContent = total ? fmtPct(acc) : "—";
+
+    const avgRT = rtCount ? (rtSum/rtCount) : null;
+    vRT.textContent = avgRT ? `${Math.round(avgRT)} ms` : "—";
+
+    vScore.classList.toggle("good", score > 0);
+    vScore.classList.toggle("bad", score < 0);
+
+    chipCfg.textContent = `${li.interval}ms · vis ${Math.round(li.vis*100)}% · ${li.opts} opciones · ${li.trials} trials`;
+    chipPrev.textContent = `prev: ${prevDigit ?? "—"}`;
+    chipCur.textContent = `cur: ${curDigit ?? "—"}`;
+  }
+
+  // ========= Core loop =========
+  // Se muestra un dígito cada interval. Desde el 2° dígito hay un "trial" por cada dígito nuevo.
+  // Si hay un trial pendiente y llega el próximo dígito, cuenta como MISS y avanza el contador.
+  function nextDigit(){
+    if(!running) return;
+
+    // Si ya completamos la cantidad, cortamos
+    if(trialsDone >= trialsTarget){
+      endSession(false);
+      return;
+    }
+
+    // Si estaba pendiente el trial anterior, se convierte en miss y consume 1 trial
+    if(pendingAnswer){
+      miss += 1;
+      const multiplier = getScoreMultiplier(appState.currentLevel);
+      score += Math.round(-1 * multiplier);
+      pendingAnswer = false;
+      lockButtons();
+      trialsDone += 1;
+
+      if(trialsDone >= trialsTarget){
+        renderHUD();
+        endSession(false);
+        return;
+      }
+    }
+
+    prevDigit = curDigit;
+    curDigit = pickOne(DIGITS);
+
+    const li = levelInfo(appState.currentLevel);
+    const visibleMs = Math.round(li.interval * li.vis);
+    showDigit(curDigit, visibleMs);
+
+    if(prevDigit != null){
+      correctSum = prevDigit + curDigit;
+      pendingAnswer = true;
+      lastTrialStartAt = performance.now();
+    }else{
+      pendingAnswer = false;
+      correctSum = null;
+      lastTrialStartAt = null;
+    }
+
+    renderOptions();
+    renderHUD();
+  }
+
+  function onAnswer(val, btn){
+    if(!running) return;
+    if(!pendingAnswer) return;
+
+    lockButtons();
+
+    const ok = val === correctSum;
+    pendingAnswer = false;
+
+    if(lastTrialStartAt != null){
+      const rt = performance.now() - lastTrialStartAt;
+      rtSum += rt;
+      rtCount += 1;
+    }
+
+    const multiplier = getScoreMultiplier(appState.currentLevel);
+    if(ok){
+      correct += 1;
+      score += Math.round(1 * multiplier);
+      btn.style.borderColor = "rgba(53,208,127,.55)";
+      btn.style.background = "rgba(53,208,127,.12)";
+    }else{
+      wrong += 1;
+      score += Math.round(-1 * multiplier);
+      btn.style.borderColor = "rgba(255,77,109,.55)";
+      btn.style.background = "rgba(255,77,109,.12)";
+      showToast(`Incorrecto → era ${correctSum}`);
+    }
+
+    trialsDone += 1;
+
+    flash();
+    renderHUD();
+
+    if(trialsDone >= trialsTarget){
+      endSession(false);
+    }
+  }
+
+  // ========= Session control =========
+  function startSession(){
+    if(running) return;
+
+    running = true;
+    setRunningUI(true);
+
+    const li = levelInfo(appState.currentLevel);
+    trialsTarget = li.trials;
+
+    prevDigit = null;
+    curDigit = null;
+    pendingAnswer = false;
+    correctSum = null;
+    lastTrialStartAt = null;
+
+    score = 0;
+    correct = 0; wrong = 0; miss = 0;
+    rtSum = 0; rtCount = 0;
+
+    trialsDone = 0;
+
+    appState.attempts += 1;
+    saveState();
+    renderStatsPanel();
+
+    // Primer dígito inmediato
+    nextDigit();
+
+    // Flujo por interval del nivel
+    clearInterval(streamHandle);
+    streamHandle = setInterval(nextDigit, li.interval);
+
+    renderHUD();
+  }
+
+  function stopSession(){
+    endSession(true);
+  }
+
+  function restartSession(){
+    if(running) stopSession();
+    startSession();
+  }
+
+  function endSession(manual){
+    if(!running) return;
+
+    running = false;
+    setRunningUI(false);
+
+    clearInterval(streamHandle);
+    streamHandle = null;
+
+    // Si queda un trial pendiente al finalizar manualmente, NO lo contamos como miss automáticamente.
+    // Si querés que cuente, descomentá:
+    // if(!manual && pendingAnswer){ miss += 1; trialsDone += 1; pendingAnswer = false; }
+
+    lockButtons();
+
+    const total = correct + wrong + miss;
+    const acc = total ? (correct/total)*100 : null;
+    const avgRT = rtCount ? (rtSum/rtCount) : null;
+
+    const li = levelInfo(appState.currentLevel);
+    const cfg = `${li.interval}ms · vis ${Math.round(li.vis*100)}% · ${li.opts} ops · ${li.trials} trials`;
+
+    const session = {
+      at: new Date().toISOString(),
+      level: appState.currentLevel,
+      score,
+      correct, wrong, miss,
+      accuracy: acc,
+      avgRTms: avgRT,
+      cfg
+    };
+
+    appState.lastSession = session;
+
+    appState.sessions = Array.isArray(appState.sessions) ? appState.sessions : [];
+    appState.sessions.push({
+      at: session.at,
+      score: session.score,
+      accuracy: session.accuracy,
+      level: session.level,
+      correct: session.correct,
+      wrong: session.wrong,
+      miss: session.miss
+    });
+    if(appState.sessions.length > 400) appState.sessions = appState.sessions.slice(-400);
+
+    const thisAccStr = (acc != null) ? `${Math.round(acc)}%` : "—";
+    const prevBest = appState.bestByLevel[appState.currentLevel];
+    const toNum = (s) => (typeof s === "string" && s.endsWith("%")) ? parseInt(s,10) : -1;
+    if(prevBest == null || toNum(thisAccStr) > toNum(prevBest)){
+      appState.bestByLevel[appState.currentLevel] = thisAccStr;
+    }
+
+    // Level up: SOLO si completó la cantidad y fue 100%
+    if(!manual && total === trialsTarget && correct === total){
+      appState.currentLevel += 1;
+      appState.maxLevel = Math.max(appState.maxLevel, appState.currentLevel);
+      showToast(`¡100%! Subiste a nivel ${appState.currentLevel} (+1 cantidad)`);
+    }else if(!manual){
+      showToast(`Fin: ${thisAccStr} (nivel ${appState.currentLevel})`);
+    }
+
+    saveState();
+    renderStatsPanel();
+    renderHUD();
+  }
+
+  function resetStats(){
+    if(running) stopSession();
+    localStorage.removeItem(KEY);
+    appState = loadState();
+    renderStatsPanel();
+    renderHUD();
+    showToast("Stats borradas.");
+  }
+
+  // ========= INIT =========
+  btnStart.addEventListener("click", startSession);
+  btnStop.addEventListener("click", stopSession);
+  btnRestart.addEventListener("click", restartSession);
+  btnResetStats.addEventListener("click", resetStats);
+
+  renderStatsPanel();
+  renderHUD();
+
+  // ===== MOBILE VIEW TOGGLE (robusto) =====
+  document.addEventListener("DOMContentLoaded", () => {
+    const btnToggleView = document.getElementById("btnToggleView");
+    const gameCard = document.querySelector(".card.game");
+    const statsCard = document.querySelector(".card.stats");
+    if(!btnToggleView || !gameCard || !statsCard) return;
+
+    let showingStats = false;
+
+    function updateToggleLabel() {
+      btnToggleView.textContent = showingStats ? "🎮 Juego" : "📊 Stats";
+    }
+
+    btnToggleView.addEventListener("click", () => {
+      showingStats = !showingStats;
+      gameCard.classList.toggle("active", !showingStats);
+      statsCard.classList.toggle("active", showingStats);
+      updateToggleLabel();
+
+      // por si el canvas estaba oculto, redibujo
+      setTimeout(() => {
+        drawScoresChart();
+        drawScoreChart();
+      }, 50);
+    });
+
+    updateToggleLabel();
   });
-  document.getElementById('tableBox').style.display='block'; document.getElementById('graphBox').style.display='none';
-};
 
-// limpiar historial
-document.getElementById('clearBtn').onclick = () => { localStorage.removeItem('pasatSessions'); alert('Historial limpiado'); document.getElementById('graphBox').style.display='none'; document.getElementById('tableBox').style.display='none'; };
+  // También redibujo el chart en resize (útil si rotás el celu)
+  window.addEventListener("resize", () => {
+    // pequeño debounce
+    clearTimeout(window.__chartResizeT);
+    window.__chartResizeT = setTimeout(() => {
+      drawScoresChart();
+      drawScoreChart();
+    }, 100);
+  });
+
+  // Demo visual (no running)
+  (function demo(){
+    digitEl.textContent = "7";
+    digitEl.classList.remove("hidden");
+    prevDigit = 3;
+    curDigit = 7;
+    pendingAnswer = false;
+    renderOptions();
+    renderHUD();
+  })();
+})();
 </script>
 </body>
 </html>

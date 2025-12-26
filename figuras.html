@@ -1,0 +1,1107 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Relaciones de Figuras</title>
+  <style>
+    :root{
+      --bg0:#0b1220;
+      --bg1:#0f1b33;
+      --card: rgba(255,255,255,.06);
+      --card2: rgba(255,255,255,.09);
+      --text:#e9eefc;
+      --muted: rgba(233,238,252,.7);
+      --good:#35d07f;
+      --bad:#ff4d6d;
+      --warn:#ffd166;
+      --shadow: 0 18px 40px rgba(0,0,0,.35);
+      --ring: 0 0 0 3px rgba(120,160,255,.28);
+      --radius: 18px;
+      --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+      --sans: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, "Helvetica Neue", Arial, "Noto Sans", "Liberation Sans", sans-serif;
+    }
+    *{box-sizing:border-box}
+    body{
+      margin:0;
+      font-family: var(--sans);
+      color: var(--text);
+      background:
+        radial-gradient(1200px 800px at 15% 10%, rgba(80,130,255,.35), transparent 60%),
+        radial-gradient(900px 700px at 85% 30%, rgba(255,120,170,.25), transparent 55%),
+        radial-gradient(900px 900px at 50% 100%, rgba(60,240,190,.18), transparent 55%),
+        linear-gradient(180deg, var(--bg0), var(--bg1));
+      min-height:100vh;
+      display:flex;
+      justify-content:center;
+      padding:28px 16px;
+    }
+    .wrap{
+      width:min(980px, 100%);
+      display:grid;
+      grid-template-columns: 1.2fr .8fr;
+      gap:18px;
+    }
+    @media (max-width: 880px){ .wrap{grid-template-columns: 1fr; } }
+    .card{
+      background: var(--card);
+      border:1px solid rgba(255,255,255,.09);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(10px);
+      overflow:hidden;
+    }
+    .card .hd{
+      padding:16px 18px;
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:12px;
+      border-bottom:1px solid rgba(255,255,255,.08);
+      background: linear-gradient(180deg, rgba(255,255,255,.06), transparent);
+    }
+    .title{ display:flex; flex-direction:column; gap:2px; }
+    .title h1{ margin:0; font-size:16px; letter-spacing:.2px; font-weight:700; }
+    .title .sub{ font-size:12px; color: var(--muted); }
+    .pillrow{display:flex; flex-wrap:wrap; gap:8px; align-items:center; justify-content:flex-end;}
+    .pill{
+      padding:8px 10px;
+      border-radius:999px;
+      background: var(--card2);
+      border:1px solid rgba(255,255,255,.10);
+      font-family: var(--mono);
+      font-size:12px;
+      color: var(--text);
+      white-space:nowrap;
+    }
+    .pill b{font-weight:800}
+    .main{ padding:18px; display:grid; gap:14px; }
+    .stage{
+      background: rgba(255,255,255,.04);
+      border:1px solid rgba(255,255,255,.08);
+      border-radius: 22px;
+      padding:22px 18px;
+      display:grid;
+      gap:16px;
+      min-height: 340px;
+    }
+    .hint{ text-align:center; color: var(--muted); font-size: 12px; user-select:none; }
+
+    .statement{
+      text-align:center;
+      font-size: clamp(18px, 3vw, 24px);
+      font-weight: 700;
+      line-height: 1.4;
+      margin: 10px 0;
+      padding: 16px;
+      background: rgba(255,255,255,.04);
+      border-radius: 16px;
+      border: 1px solid rgba(255,255,255,.08);
+      min-height: 80px;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+    }
+
+    .figuresContainer{
+      display:flex;
+      justify-content:center;
+      align-items:center;
+      min-height: 280px;
+      padding: 20px;
+      position:relative;
+    }
+    .figuresSvg{
+      width: 100%;
+      max-width: 400px;
+      height: 280px;
+    }
+
+    .answerButtons{
+      display:grid;
+      grid-template-columns: repeat(2, minmax(0,1fr));
+      gap:12px;
+      margin-top:10px;
+    }
+    @media (max-width: 520px){
+      .answerButtons{ grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      button.answerBtn{
+        min-height: 58px;
+        font-size: 18px;
+        padding: 14px 12px;
+      }
+    }
+    button.answerBtn{
+      cursor:pointer;
+      padding:16px 14px;
+      border-radius: 16px;
+      border: 1px solid rgba(255,255,255,.12);
+      background: rgba(255,255,255,.06);
+      color: var(--text);
+      font-size: 20px;
+      font-weight: 900;
+      letter-spacing:.6px;
+      box-shadow: 0 10px 22px rgba(0,0,0,.22);
+      transition: transform .06s ease, background .12s ease, border-color .12s ease;
+      user-select:none;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      min-height: 62px;
+    }
+    button.answerBtn:hover{ transform: translateY(-1px); background: rgba(255,255,255,.085); }
+    button.answerBtn:active{ transform: translateY(1px) scale(.995); }
+    button.answerBtn:focus-visible{ outline:none; box-shadow: var(--shadow), var(--ring); }
+    button.answerBtn.true{ background: linear-gradient(180deg, rgba(53,208,127,.25), rgba(53,208,127,.10)); border-color: rgba(53,208,127,.4); }
+    button.answerBtn.false{ background: linear-gradient(180deg, rgba(255,77,109,.25), rgba(255,77,109,.10)); border-color: rgba(255,77,109,.4); }
+
+    .controls{ display:flex; gap:10px; flex-wrap:wrap; justify-content:space-between; align-items:center; }
+    .btnrow{display:flex; gap:10px; flex-wrap:wrap;}
+    .btn{
+      cursor:pointer;
+      padding:10px 12px;
+      border-radius: 12px;
+      border:1px solid rgba(255,255,255,.12);
+      background: rgba(255,255,255,.07);
+      color: var(--text);
+      font-weight:700;
+      font-size: 13px;
+      transition: background .12s ease, transform .06s ease;
+    }
+    .btn:hover{ background: rgba(255,255,255,.10); transform: translateY(-1px); }
+    .btn:active{ transform: translateY(1px); }
+    .btn.primary{
+      background: linear-gradient(180deg, rgba(120,160,255,.35), rgba(120,160,255,.15));
+      border-color: rgba(120,160,255,.55);
+    }
+    .btn.danger{
+      background: linear-gradient(180deg, rgba(255,77,109,.22), rgba(255,77,109,.10));
+      border-color: rgba(255,77,109,.45);
+    }
+
+    .status{
+      display:grid;
+      grid-template-columns: repeat(4, minmax(0,1fr));
+      gap:10px;
+    }
+    @media (max-width: 520px){ .status{grid-template-columns: repeat(2, minmax(0,1fr));} }
+    .stat{
+      padding:10px 12px;
+      border-radius: 14px;
+      background: rgba(255,255,255,.05);
+      border:1px solid rgba(255,255,255,.08);
+      display:flex;
+      flex-direction:column;
+      gap:4px;
+    }
+    .stat .k{font-size:11px; color: var(--muted); font-family: var(--mono);}
+    .stat .v{font-size:18px; font-weight:900; font-family: var(--mono);}
+    .v.good{color: var(--good);}
+    .v.bad{color: var(--bad);}
+    .v.warn{color: var(--warn);}
+
+    .badge{
+      display:inline-flex;
+      align-items:center;
+      gap:8px;
+      padding:8px 10px;
+      border-radius: 999px;
+      border:1px solid rgba(255,255,255,.10);
+      background: rgba(255,255,255,.06);
+      font-family: var(--mono);
+      font-size: 12px;
+      color: var(--muted);
+    }
+    .dot{
+      width:10px; height:10px; border-radius:999px;
+      background: rgba(255,255,255,.2);
+      box-shadow: 0 0 0 3px rgba(255,255,255,.06);
+    }
+    .dot.on{ background: var(--good); box-shadow: 0 0 0 3px rgba(53,208,127,.18); }
+
+    .side{ padding:18px; display:grid; gap:14px; }
+    .panel{
+      padding:14px 14px;
+      border-radius: 16px;
+      background: rgba(255,255,255,.05);
+      border:1px solid rgba(255,255,255,.08);
+      display:grid;
+      gap:10px;
+    }
+    .side h2{ margin:0; font-size:14px; letter-spacing:.2px; }
+    .row{
+      display:flex;
+      justify-content:space-between;
+      gap:12px;
+      align-items:baseline;
+      font-family: var(--mono);
+      font-size:12px;
+      color: var(--muted);
+    }
+    .row b{color: var(--text); font-weight:900;}
+    .small{ font-size:12px; color: var(--muted); line-height:1.35; }
+
+    .toast{
+      position: fixed;
+      left: 50%;
+      bottom: 18px;
+      transform: translateX(-50%);
+      background: rgba(15,27,51,.86);
+      border:1px solid rgba(255,255,255,.12);
+      border-radius: 999px;
+      padding: 10px 14px;
+      box-shadow: 0 18px 40px rgba(0,0,0,.35);
+      font-family: var(--mono);
+      font-size: 12px;
+      color: var(--text);
+      opacity:0;
+      pointer-events:none;
+      transition: opacity .2s ease, transform .2s ease;
+    }
+    .toast.show{ opacity:1; transform: translateX(-50%) translateY(-6px); }
+    .flash{ animation: flash .18s ease-out; }
+    @keyframes flash{ from{ transform: scale(1.01); } to{ transform: scale(1.0); } }
+
+    /* ====== CHART ====== */
+    .chartWrap{ display:grid; gap:10px; }
+    canvas#scoresChart{
+      width:100%;
+      height:160px;
+      border-radius: 14px;
+      background: rgba(255,255,255,.04);
+      border:1px solid rgba(255,255,255,.08);
+    }
+    .chartLegend{
+      display:flex;
+      justify-content:space-between;
+      gap:10px;
+      font-family: var(--mono);
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    /* ===== MOBILE FULLSCREEN MODE ===== */
+    @media (max-width: 880px) {
+      body { padding: 0; }
+      .wrap {
+        width: 100vw;
+        height: 100vh;
+        grid-template-columns: 1fr;
+        gap: 0;
+      }
+      .card {
+        border-radius: 0;
+        height: 100vh;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+      }
+      .card.stats { display: none; }
+      .card.active { display: flex; }
+      .card .hd { padding: 12px 14px; flex-shrink: 0; }
+      .main { 
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+        padding: 12px;
+        gap: 10px;
+      }
+      .controls { flex-shrink: 0; }
+      .status { flex-shrink: 0; }
+      .stage {
+        min-height: unset;
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        justify-content: flex-start;
+        padding: 12px 10px;
+        gap: 8px;
+        overflow: hidden;
+      }
+      .statement{
+        font-size: clamp(14px, 3.5vw, 18px);
+        padding: 10px;
+        min-height: 50px;
+        flex-shrink: 0;
+        line-height: 1.3;
+      }
+      .figuresContainer{
+        min-height: 0;
+        flex: 1;
+        padding: 8px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      .figuresSvg{
+        max-width: 100%;
+        height: 100%;
+        max-height: 220px;
+      }
+      .answerButtons{
+        flex-shrink: 0;
+        gap: 10px;
+        margin-top: 0;
+      }
+      button.answerBtn{
+        padding: 12px 10px;
+        font-size: 16px;
+        min-height: 50px;
+      }
+      .hint{
+        font-size: 10px;
+        flex-shrink: 0;
+      }
+      .mobile-toggle {
+        position: fixed;
+        top: 10px;
+        right: 10px;
+        z-index: 999;
+        padding: 10px 12px;
+        border-radius: 999px;
+        border: 1px solid rgba(255,255,255,.15);
+        background: rgba(15,27,51,.85);
+        color: var(--text);
+        font-weight: 800;
+        font-size: 12px;
+        backdrop-filter: blur(8px);
+        cursor: pointer;
+        box-shadow: var(--shadow);
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <div class="wrap">
+    <section class="card game active">
+      <div class="hd">
+        <div class="title">
+          <h1>Relaciones de Figuras</h1>
+          <div class="sub">Evaluá si la afirmación es verdadera o falsa según las figuras mostradas.</div>
+        </div>
+        <div class="pillrow">
+          <div class="pill">Duración: <b>90s</b></div>
+          <div class="pill">+1 correcto / -1 incorrecto</div>
+          <div class="pill">Subís si ≥ <b>50</b> pts</div>
+        </div>
+      </div>
+
+      <div class="main">
+        <div class="controls">
+          <div class="btnrow">
+            <button class="btn primary" id="btnStart">▶ Iniciar</button>
+            <button class="btn" id="btnStop" disabled>⏹ Detener</button>
+            <button class="btn" id="btnRestart" disabled>↻ Reiniciar</button>
+          </div>
+          <div class="badge" title="Estado">
+            <span class="dot" id="dotRun"></span>
+            <span id="lblState">Listo</span>
+          </div>
+        </div>
+
+        <div class="status">
+          <div class="stat"><div class="k">NIVEL</div><div class="v" id="vLevel">1</div></div>
+          <div class="stat"><div class="k">PUNTAJE</div><div class="v" id="vScore">0</div></div>
+          <div class="stat"><div class="k">TIEMPO</div><div class="v" id="vTime">90.0</div></div>
+          <div class="stat"><div class="k">ACIERTO</div><div class="v" id="vAcc">—</div></div>
+        </div>
+
+        <div class="stage" id="stage">
+          <div class="hint">Arriba: afirmación sobre las figuras</div>
+          <div class="statement" id="statement">Presioná "Iniciar" para comenzar</div>
+
+          <div class="hint">Abajo: figuras visuales</div>
+          <div class="figuresContainer">
+            <svg class="figuresSvg" id="figuresSvg" viewBox="0 0 400 280"></svg>
+          </div>
+
+          <div class="hint">¿La afirmación es verdadera o falsa?</div>
+          <div class="answerButtons">
+            <button class="answerBtn true" id="btnTrue">✓ Verdadero</button>
+            <button class="answerBtn false" id="btnFalse">✗ Falso</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <aside class="card stats">
+      <div class="hd">
+        <div class="title">
+          <h1>Estadísticas</h1>
+          <div class="sub">Se guardan en tu navegador (localStorage).</div>
+        </div>
+        <div class="pillrow">
+          <button class="btn danger" id="btnResetStats">Borrar stats</button>
+        </div>
+      </div>
+
+      <div class="side">
+        <div class="panel">
+          <h2>Progreso</h2>
+          <div class="row"><span>Nivel actual</span><b id="sCurLevel">1</b></div>
+          <div class="row"><span>Mejor nivel alcanzado</span><b id="sMaxLevel">1</b></div>
+          <div class="row"><span>Intentos totales</span><b id="sAttempts">0</b></div>
+        </div>
+
+        <div class="panel">
+          <h2>Puntajes en el tiempo</h2>
+          <div class="chartWrap">
+            <canvas id="scoresChart" width="900" height="260"></canvas>
+            <div class="chartLegend">
+              <span>Sesiones: <b id="sSessionsCount">0</b></span>
+              <span>Mejor puntaje: <b id="sBestEver">—</b></span>
+            </div>
+          </div>
+          <div class="small">Línea = puntaje final por sesión (orden cronológico).</div>
+        </div>
+
+        <div class="panel">
+          <h2>Última sesión</h2>
+          <div class="row"><span>Puntaje</span><b id="sLastScore">—</b></div>
+          <div class="row"><span>Correctas / Incorrectas</span><b id="sLastCE">—</b></div>
+          <div class="row"><span>Precisión</span><b id="sLastAcc">—</b></div>
+        </div>
+
+        <div class="panel">
+          <h2>Mejores por nivel</h2>
+          <div class="small" id="bestByLevel">—</div>
+        </div>
+      </div>
+    </aside>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <!-- Botón mobile -->
+  <button class="mobile-toggle" id="btnToggleView">📊 Stats</button>
+
+  <script>
+    (() => {
+      // ====== CONFIG ======
+      const SESSION_SECONDS = 90.0;
+      const PASS_SCORE = 50;
+      const SCORE_CORRECT = +1;
+      const SCORE_WRONG = -1;
+
+      const FIGURES = [
+        { name: "círculo", type: "circle", color: "#ff3b5c" },
+        { name: "cuadrado", type: "square", color: "#3b82f6" },
+        { name: "triángulo", type: "triangle", color: "#22c55e" },
+        { name: "rombo", type: "diamond", color: "#facc15" },
+        { name: "estrella", type: "star", color: "#a855f7" },
+        { name: "hexágono", type: "hexagon", color: "#fb923c" }
+      ];
+
+      const RELATIONS = [
+        { text: "{A} contiene a {B}", check: (a, b, sizes) => sizes[a] > sizes[b] },
+        { text: "{A} está contenido por {B}", check: (a, b, sizes) => sizes[a] < sizes[b] },
+        { text: "{A} es más grande que {B}", check: (a, b, sizes) => sizes[a] > sizes[b] },
+        { text: "{A} es más chico que {B}", check: (a, b, sizes) => sizes[a] < sizes[b] },
+        { text: "{A} no contiene a {B}", check: (a, b, sizes) => sizes[a] <= sizes[b] },
+        { text: "{A} no está contenido por {B}", check: (a, b, sizes) => sizes[a] >= sizes[b] },
+        { text: "{A} no es más grande que {B}", check: (a, b, sizes) => sizes[a] <= sizes[b] },
+        { text: "{A} no es más chico que {B}", check: (a, b, sizes) => sizes[a] >= sizes[b] }
+      ];
+
+      // ====== STORAGE ======
+      const KEY = "figuras_relaciones_v1";
+      function loadState(){
+        try{
+          const raw = localStorage.getItem(KEY);
+          if(!raw) return {
+            currentLevel: 1,
+            maxLevel: 1,
+            attempts: 0,
+            bestByLevel: {},
+            lastSession: null,
+            sessions: []
+          };
+          const obj = JSON.parse(raw);
+          return {
+            currentLevel: Math.max(1, obj.currentLevel || 1),
+            maxLevel: Math.max(1, obj.maxLevel || 1),
+            attempts: obj.attempts || 0,
+            bestByLevel: obj.bestByLevel || {},
+            lastSession: obj.lastSession || null,
+            sessions: Array.isArray(obj.sessions) ? obj.sessions : []
+          };
+        }catch(e){
+          return { currentLevel: 1, maxLevel: 1, attempts: 0, bestByLevel: {}, lastSession: null, sessions: [] };
+        }
+      }
+      function saveState(){
+        localStorage.setItem(KEY, JSON.stringify(appState));
+      }
+      let appState = loadState();
+
+      // ====== LEVEL LOGIC ======
+      function figuresCountForLevel(level){
+        // Nivel 1 = 2 figuras, nivel 2 = 3, nivel 3 = 4, etc.
+        return Math.min(level + 1, FIGURES.length);
+      }
+
+      // ====== UI ELEMENTS ======
+      const el = (id) => document.getElementById(id);
+
+      const statement = el("statement");
+      const figuresSvg = el("figuresSvg");
+      const btnTrue = el("btnTrue");
+      const btnFalse = el("btnFalse");
+
+      const vLevel = el("vLevel");
+      const vScore = el("vScore");
+      const vTime = el("vTime");
+      const vAcc = el("vAcc");
+
+      const btnStart = el("btnStart");
+      const btnStop = el("btnStop");
+      const btnRestart = el("btnRestart");
+
+      const dotRun = el("dotRun");
+      const lblState = el("lblState");
+      const stage = el("stage");
+      const toast = el("toast");
+
+      const sCurLevel = el("sCurLevel");
+      const sMaxLevel = el("sMaxLevel");
+      const sAttempts = el("sAttempts");
+      const sLastScore = el("sLastScore");
+      const sLastCE = el("sLastCE");
+      const sLastAcc = el("sLastAcc");
+      const bestByLevel = el("bestByLevel");
+      const btnResetStats = el("btnResetStats");
+
+      const chart = el("scoresChart");
+      const sSessionsCount = el("sSessionsCount");
+      const sBestEver = el("sBestEver");
+
+      // ====== GAME STATE ======
+      let running = false;
+      let timeLeft = SESSION_SECONDS;
+      let score = 0;
+      let correct = 0;
+      let wrong = 0;
+
+      let currentFigures = [];
+      let currentSizes = {};
+      let currentStatement = "";
+      let currentAnswer = null;
+
+      let timerHandle = null;
+
+      // ====== HELPERS ======
+      function randInt(n){ return Math.floor(Math.random() * n); }
+      function pickOne(arr){ return arr[randInt(arr.length)]; }
+      function shuffle(arr){
+        const a = arr.slice();
+        for(let i=a.length-1;i>0;i--){
+          const j = Math.floor(Math.random()*(i+1));
+          [a[i], a[j]] = [a[j], a[i]];
+        }
+        return a;
+      }
+      function showToast(msg){
+        toast.textContent = msg;
+        toast.classList.add("show");
+        setTimeout(() => toast.classList.remove("show"), 1300);
+      }
+      function setRunningUI(on){
+        dotRun.classList.toggle("on", on);
+        lblState.textContent = on ? "Jugando" : "Listo";
+        btnStart.disabled = on;
+        btnStop.disabled = !on;
+        btnRestart.disabled = !on;
+      }
+      function fmtPct(x){
+        if(!isFinite(x)) return "—";
+        return `${Math.round(x)}%`;
+      }
+      function fmt1(x){ return (Math.round(x*10)/10).toFixed(1); }
+
+      // ====== FIGURE DRAWING ======
+      function drawCircle(svg, cx, cy, r, color){
+        const circle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+        circle.setAttribute("cx", cx);
+        circle.setAttribute("cy", cy);
+        circle.setAttribute("r", r);
+        circle.setAttribute("fill", color);
+        circle.setAttribute("stroke", "rgba(255,255,255,.2)");
+        circle.setAttribute("stroke-width", "2");
+        svg.appendChild(circle);
+      }
+
+      function drawSquare(svg, x, y, size, color){
+        const rect = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+        rect.setAttribute("x", x - size/2);
+        rect.setAttribute("y", y - size/2);
+        rect.setAttribute("width", size);
+        rect.setAttribute("height", size);
+        rect.setAttribute("fill", color);
+        rect.setAttribute("stroke", "rgba(255,255,255,.2)");
+        rect.setAttribute("stroke-width", "2");
+        svg.appendChild(rect);
+      }
+
+      function drawTriangle(svg, cx, cy, size, color){
+        const triangle = document.createElementNS("http://www.w3.org/2000/svg", "polygon");
+        const h = size * 0.866;
+        const points = `${cx},${cy - h} ${cx - size/2},${cy + h/2} ${cx + size/2},${cy + h/2}`;
+        triangle.setAttribute("points", points);
+        triangle.setAttribute("fill", color);
+        triangle.setAttribute("stroke", "rgba(255,255,255,.2)");
+        triangle.setAttribute("stroke-width", "2");
+        svg.appendChild(triangle);
+      }
+
+      function drawDiamond(svg, cx, cy, size, color){
+        const diamond = document.createElementNS("http://www.w3.org/2000/svg", "polygon");
+        const points = `${cx},${cy - size/2} ${cx + size/2},${cy} ${cx},${cy + size/2} ${cx - size/2},${cy}`;
+        diamond.setAttribute("points", points);
+        diamond.setAttribute("fill", color);
+        diamond.setAttribute("stroke", "rgba(255,255,255,.2)");
+        diamond.setAttribute("stroke-width", "2");
+        svg.appendChild(diamond);
+      }
+
+      function drawStar(svg, cx, cy, size, color){
+        const star = document.createElementNS("http://www.w3.org/2000/svg", "polygon");
+        const outerR = size / 2;
+        const innerR = outerR * 0.4;
+        let points = "";
+        for(let i=0; i<10; i++){
+          const angle = (i * Math.PI) / 5 - Math.PI/2;
+          const r = i % 2 === 0 ? outerR : innerR;
+          const x = cx + r * Math.cos(angle);
+          const y = cy + r * Math.sin(angle);
+          points += `${x},${y} `;
+        }
+        star.setAttribute("points", points.trim());
+        star.setAttribute("fill", color);
+        star.setAttribute("stroke", "rgba(255,255,255,.2)");
+        star.setAttribute("stroke-width", "2");
+        svg.appendChild(star);
+      }
+
+      function drawHexagon(svg, cx, cy, size, color){
+        const hex = document.createElementNS("http://www.w3.org/2000/svg", "polygon");
+        let points = "";
+        for(let i=0; i<6; i++){
+          const angle = (i * Math.PI) / 3;
+          const x = cx + (size/2) * Math.cos(angle);
+          const y = cy + (size/2) * Math.sin(angle);
+          points += `${x},${y} `;
+        }
+        hex.setAttribute("points", points.trim());
+        hex.setAttribute("fill", color);
+        hex.setAttribute("stroke", "rgba(255,255,255,.2)");
+        hex.setAttribute("stroke-width", "2");
+        svg.appendChild(hex);
+      }
+
+      function drawFigure(svg, fig, cx, cy, size){
+        switch(fig.type){
+          case "circle": drawCircle(svg, cx, cy, size/2, fig.color); break;
+          case "square": drawSquare(svg, cx, cy, size, fig.color); break;
+          case "triangle": drawTriangle(svg, cx, cy, size, fig.color); break;
+          case "diamond": drawDiamond(svg, cx, cy, size, fig.color); break;
+          case "star": drawStar(svg, cx, cy, size, fig.color); break;
+          case "hexagon": drawHexagon(svg, cx, cy, size, fig.color); break;
+        }
+      }
+
+      function renderFigures(){
+        // Limpiar SVG de forma eficiente
+        while(figuresSvg.firstChild){
+          figuresSvg.removeChild(figuresSvg.firstChild);
+        }
+        
+        const centerX = 200;
+        const centerY = 140;
+
+        // Ordenar figuras por tamaño (mayor a menor) para dibujarlas anidadas
+        const figuresWithSizes = currentFigures.map((fig) => ({
+          fig,
+          size: currentSizes[fig.name]
+        })).sort((a, b) => b.size - a.size);
+
+        // Dibujar de mayor a menor (anidadas)
+        figuresWithSizes.forEach(({fig, size}) => {
+          drawFigure(figuresSvg, fig, centerX, centerY, size);
+        });
+      }
+
+      // ====== GAME LOGIC ======
+      function generateRound(){
+        if(!running) return;
+
+        const figCount = figuresCountForLevel(appState.currentLevel);
+        // Empieza con círculo y cuadrado, luego agrega las demás según el nivel
+        // Nivel 1: círculo, cuadrado (2)
+        // Nivel 2: círculo, cuadrado, triángulo (3)
+        // Nivel 3: círculo, cuadrado, triángulo, rombo (4)
+        // etc.
+        currentFigures = FIGURES.slice(0, figCount);
+        shuffle(currentFigures);
+
+        // Generar tamaños: diferencias más notables entre figuras
+        const baseSize = 60;
+        const sizeStep = 40; // Incremento más grande para diferencia notable
+        
+        // Crear array de tamaños ordenados de mayor a menor
+        const sizes = [];
+        for(let i = 0; i < figCount; i++){
+          sizes.push(baseSize + sizeStep * (figCount - 1 - i));
+        }
+        
+        // Asignar tamaños aleatoriamente a las figuras
+        const shuffledSizes = shuffle(sizes.slice());
+        currentSizes = {};
+        currentFigures.forEach((fig, idx) => {
+          currentSizes[fig.name] = shuffledSizes[idx];
+        });
+
+        // Elegir dos figuras para la comparación
+        const figA = pickOne(currentFigures);
+        let figB = pickOne(currentFigures.filter(f => f.name !== figA.name));
+        
+        // Elegir una relación
+        const relation = pickOne(RELATIONS);
+        currentStatement = relation.text.replace("{A}", `el ${figA.name}`).replace("{B}", `el ${figB.name}`);
+        statement.textContent = currentStatement;
+
+        // Calcular respuesta correcta
+        currentAnswer = relation.check(figA.name, figB.name, currentSizes);
+
+        renderFigures();
+      }
+
+      function onAnswer(userAnswer){
+        if(!running) return;
+
+        btnTrue.disabled = true;
+        btnFalse.disabled = true;
+
+        const isCorrect = userAnswer === currentAnswer;
+
+        if(isCorrect){
+          score += SCORE_CORRECT;
+          correct += 1;
+          if(userAnswer){
+            btnTrue.style.borderColor = "rgba(53,208,127,.8)";
+            btnTrue.style.background = "rgba(53,208,127,.25)";
+          }else{
+            btnFalse.style.borderColor = "rgba(53,208,127,.8)";
+            btnFalse.style.background = "rgba(53,208,127,.25)";
+          }
+        }else{
+          score += SCORE_WRONG;
+          wrong += 1;
+          if(userAnswer){
+            btnTrue.style.borderColor = "rgba(255,77,109,.8)";
+            btnTrue.style.background = "rgba(255,77,109,.25)";
+          }else{
+            btnFalse.style.borderColor = "rgba(255,77,109,.8)";
+            btnFalse.style.background = "rgba(255,77,109,.25)";
+          }
+          showToast(`Incorrecto → era ${currentAnswer ? "Verdadero" : "Falso"}`);
+        }
+
+        stage.classList.remove("flash");
+        void stage.offsetWidth;
+        stage.classList.add("flash");
+
+        renderHUD();
+
+        setTimeout(() => {
+          if(running){
+            btnTrue.style.borderColor = "";
+            btnTrue.style.background = "";
+            btnFalse.style.borderColor = "";
+            btnFalse.style.background = "";
+            btnTrue.disabled = false;
+            btnFalse.disabled = false;
+            generateRound();
+          }
+        }, 100);
+      }
+
+      function renderHUD(){
+        vLevel.textContent = appState.currentLevel;
+        vScore.textContent = score;
+        vTime.textContent = fmt1(timeLeft);
+
+        const total = correct + wrong;
+        vAcc.textContent = (total === 0) ? "—" : fmtPct((correct/total)*100);
+
+        vScore.classList.toggle("good", score >= PASS_SCORE);
+        vScore.classList.toggle("bad", score < 0);
+        vTime.classList.toggle("warn", timeLeft <= 10);
+      }
+
+      function tick(){
+        if(!running) return;
+        timeLeft = Math.max(0, timeLeft - 0.1);
+        renderHUD();
+        if(timeLeft <= 0){
+          endSession(false);
+        }
+      }
+
+      // ====== CHART ======
+      function drawScoresChart(){
+        if(!chart) return;
+
+        const ctx = chart.getContext("2d");
+        const W = chart.width;
+        const H = chart.height;
+        ctx.clearRect(0,0,W,H);
+
+        const sessions = Array.isArray(appState.sessions) ? appState.sessions : [];
+        const scores = sessions.map(s => Number(s.score)).filter(x => Number.isFinite(x));
+
+        sSessionsCount.textContent = String(scores.length);
+
+        if(scores.length === 0){
+          sBestEver.textContent = "—";
+          ctx.globalAlpha = 0.85;
+          ctx.font = "16px ui-monospace, Menlo, Consolas, monospace";
+          ctx.fillStyle = "rgba(233,238,252,.75)";
+          ctx.fillText("Todavía no hay sesiones guardadas.", 18, 46);
+          ctx.font = "12px ui-monospace, Menlo, Consolas, monospace";
+          ctx.fillStyle = "rgba(233,238,252,.55)";
+          ctx.fillText("Jugá al menos 1 sesión para ver el gráfico.", 18, 70);
+          ctx.globalAlpha = 1;
+          return;
+        }
+
+        const best = Math.max(...scores);
+        sBestEver.textContent = String(best);
+
+        const padL = 42, padR = 14, padT = 16, padB = 30;
+        const iw = W - padL - padR;
+        const ih = H - padT - padB;
+
+        let minY = Math.min(...scores);
+        let maxY = Math.max(...scores);
+        if(minY === maxY){ minY -= 1; maxY += 1; }
+        const extra = Math.max(1, Math.round((maxY - minY) * 0.1));
+        minY -= extra; maxY += extra;
+
+        const xFor = (i) => padL + (iw * (scores.length === 1 ? 0 : (i/(scores.length-1))));
+        const yFor = (v) => padT + (ih * (1 - ((v - minY) / (maxY - minY))));
+
+        ctx.lineWidth = 1;
+        ctx.strokeStyle = "rgba(255,255,255,.10)";
+        for(let k=0;k<=3;k++){
+          const y = padT + (ih * (k/3));
+          ctx.beginPath(); ctx.moveTo(padL, y); ctx.lineTo(padL+iw, y); ctx.stroke();
+        }
+
+        ctx.strokeStyle = "rgba(255,255,255,.16)";
+        ctx.beginPath(); ctx.moveTo(padL, padT); ctx.lineTo(padL, padT+ih); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(padL, padT+ih); ctx.lineTo(padL+iw, padT+ih); ctx.stroke();
+
+        ctx.fillStyle = "rgba(233,238,252,.65)";
+        ctx.font = "12px ui-monospace, Menlo, Consolas, monospace";
+        ctx.fillText(String(Math.round(maxY)), 8, padT + 12);
+        ctx.fillText(String(Math.round(minY)), 8, padT + ih);
+
+        ctx.lineWidth = 2;
+        ctx.strokeStyle = "rgba(120,160,255,.95)";
+        ctx.beginPath();
+        scores.forEach((v,i) => {
+          const x = xFor(i);
+          const y = yFor(v);
+          if(i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
+        });
+        ctx.stroke();
+
+        ctx.fillStyle = "rgba(255,255,255,.9)";
+        scores.forEach((v,i) => {
+          const x = xFor(i);
+          const y = yFor(v);
+          ctx.beginPath();
+          ctx.arc(x,y,3,0,Math.PI*2);
+          ctx.fill();
+        });
+
+        ctx.fillStyle = "rgba(233,238,252,.55)";
+        ctx.font = "12px ui-monospace, Menlo, Consolas, monospace";
+        ctx.fillText(`Sesiones (1 … ${scores.length})`, padL, H - 10);
+      }
+
+      function renderStatsPanel(){
+        sCurLevel.textContent = appState.currentLevel;
+        sMaxLevel.textContent = appState.maxLevel;
+        sAttempts.textContent = appState.attempts;
+
+        const ls = appState.lastSession;
+        if(!ls){
+          sLastScore.textContent = "—";
+          sLastCE.textContent = "—";
+          sLastAcc.textContent = "—";
+        }else{
+          sLastScore.textContent = ls.score;
+          sLastCE.textContent = `${ls.correct} / ${ls.wrong}`;
+          sLastAcc.textContent = fmtPct(ls.accuracy);
+        }
+
+        const keys = Object.keys(appState.bestByLevel).map(k=>parseInt(k,10)).sort((a,b)=>a-b);
+        if(keys.length === 0){
+          bestByLevel.textContent = "Todavía no hay récords guardados.";
+        }else{
+          bestByLevel.innerHTML = keys.map(k => {
+            const figCount = figuresCountForLevel(k);
+            return `Nivel <b>${k}</b> (${figCount} figuras) — mejor: <b>${appState.bestByLevel[k]}</b>`;
+          }).join("<br/>");
+        }
+
+        drawScoresChart();
+      }
+
+      // ====== SESSION CONTROL ======
+      function startSession(){
+        if(running) return;
+
+        running = true;
+        timeLeft = SESSION_SECONDS;
+        score = 0;
+        correct = 0;
+        wrong = 0;
+
+        // Asegurar que los botones estén habilitados
+        btnTrue.disabled = false;
+        btnFalse.disabled = false;
+        btnTrue.style.borderColor = "";
+        btnTrue.style.background = "";
+        btnFalse.style.borderColor = "";
+        btnFalse.style.background = "";
+
+        renderHUD();
+        setRunningUI(true);
+
+        appState.attempts += 1;
+        saveState();
+        renderStatsPanel();
+
+        generateRound();
+        timerHandle = setInterval(tick, 100);
+      }
+
+      function endSession(manual){
+        if(!running) return;
+
+        running = false;
+        clearInterval(timerHandle);
+        timerHandle = null;
+        setRunningUI(false);
+        btnTrue.disabled = true;
+        btnFalse.disabled = true;
+
+        const total = correct + wrong;
+        const acc = total ? (correct/total)*100 : null;
+
+        const session = {
+          at: new Date().toISOString(),
+          level: appState.currentLevel,
+          score,
+          correct,
+          wrong,
+          accuracy: acc
+        };
+
+        appState.lastSession = session;
+
+        appState.sessions = Array.isArray(appState.sessions) ? appState.sessions : [];
+        appState.sessions.push({
+          at: session.at,
+          score: session.score,
+          level: session.level,
+          correct: session.correct,
+          wrong: session.wrong
+        });
+        if(appState.sessions.length > 400) appState.sessions = appState.sessions.slice(-400);
+
+        const lv = appState.currentLevel;
+        const prevBest = appState.bestByLevel[lv];
+        if(prevBest == null || score > prevBest){
+          appState.bestByLevel[lv] = score;
+        }
+
+        if(!manual && score >= PASS_SCORE){
+          appState.currentLevel += 1;
+          appState.maxLevel = Math.max(appState.maxLevel, appState.currentLevel);
+          showToast(`¡Subiste a nivel ${appState.currentLevel}!`);
+        }else if(!manual){
+          showToast(`Fin: ${score} pts (nivel ${appState.currentLevel})`);
+        }
+
+        saveState();
+        renderStatsPanel();
+        renderHUD();
+      }
+
+      function stopSession(){ endSession(true); }
+      function restartSession(){
+        if(running) stopSession();
+        startSession();
+      }
+
+      function resetStats(){
+        if(running) stopSession();
+        localStorage.removeItem(KEY);
+        appState = loadState();
+        score = 0; correct = 0; wrong = 0;
+        renderHUD();
+        renderStatsPanel();
+        showToast("Stats borradas.");
+      }
+
+      // ====== INIT ======
+      btnStart.addEventListener("click", startSession);
+      btnStop.addEventListener("click", stopSession);
+      btnRestart.addEventListener("click", restartSession);
+      btnTrue.addEventListener("click", () => onAnswer(true));
+      btnFalse.addEventListener("click", () => onAnswer(false));
+      btnResetStats.addEventListener("click", resetStats);
+
+      renderStatsPanel();
+      renderHUD();
+
+      // ===== MOBILE VIEW TOGGLE =====
+      document.addEventListener("DOMContentLoaded", () => {
+        const btnToggleView = document.getElementById("btnToggleView");
+        const gameCard = document.querySelector(".card.game");
+        const statsCard = document.querySelector(".card.stats");
+        if(!btnToggleView || !gameCard || !statsCard) return;
+
+        let showingStats = false;
+
+        function updateToggleLabel() {
+          btnToggleView.textContent = showingStats ? "🎮 Juego" : "📊 Stats";
+        }
+
+        btnToggleView.addEventListener("click", () => {
+          showingStats = !showingStats;
+          gameCard.classList.toggle("active", !showingStats);
+          statsCard.classList.toggle("active", showingStats);
+          updateToggleLabel();
+
+          setTimeout(() => drawScoresChart(), 50);
+        });
+
+        updateToggleLabel();
+      });
+
+      window.addEventListener("resize", () => {
+        clearTimeout(window.__chartResizeT);
+        window.__chartResizeT = setTimeout(() => drawScoresChart(), 100);
+      });
+
+    })();
+  </script>
+</body>
+</html>
+

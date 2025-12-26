@@ -1,0 +1,1354 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Stroop Match Trainer</title>
+
+  <style>
+    :root{
+      --bg0:#0b1220;
+      --bg1:#0f1b33;
+      --card: rgba(255,255,255,.06);
+      --card2: rgba(255,255,255,.09);
+      --text:#e9eefc;
+      --muted: rgba(233,238,252,.7);
+      --good:#35d07f;
+      --bad:#ff4d6d;
+      --warn:#ffd166;
+      --shadow: 0 18px 40px rgba(0,0,0,.35);
+      --ring: 0 0 0 3px rgba(120,160,255,.28);
+      --radius: 18px;
+      --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+      --sans: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, "Helvetica Neue", Arial, "Noto Sans", "Liberation Sans", sans-serif;
+    }
+    *{box-sizing:border-box}
+    body{
+      margin:0;
+      font-family: var(--sans);
+      color: var(--text);
+      background:
+        radial-gradient(1200px 800px at 15% 10%, rgba(80,130,255,.35), transparent 60%),
+        radial-gradient(900px 700px at 85% 30%, rgba(255,120,170,.25), transparent 55%),
+        radial-gradient(900px 900px at 50% 100%, rgba(60,240,190,.18), transparent 55%),
+        linear-gradient(180deg, var(--bg0), var(--bg1));
+      min-height:100vh;
+      display:flex;
+      justify-content:center;
+      padding:28px 16px;
+    }
+    .wrap{
+      width:min(980px, 100%);
+      display:grid;
+      grid-template-columns: 1.2fr .8fr;
+      gap:18px;
+    }
+    @media (max-width: 880px){ .wrap{grid-template-columns: 1fr; } }
+    .card{
+      background: var(--card);
+      border:1px solid rgba(255,255,255,.09);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(10px);
+      overflow:hidden;
+    }
+    .card .hd{
+      padding:16px 18px;
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:12px;
+      border-bottom:1px solid rgba(255,255,255,.08);
+      background: linear-gradient(180deg, rgba(255,255,255,.06), transparent);
+    }
+    .title{ display:flex; flex-direction:column; gap:2px; }
+    .title h1{ margin:0; font-size:16px; letter-spacing:.2px; font-weight:700; }
+    .title .sub{ font-size:12px; color: var(--muted); }
+    .pillrow{display:flex; flex-wrap:wrap; gap:8px; align-items:center; justify-content:flex-end;}
+    .pill{
+      padding:8px 10px;
+      border-radius:999px;
+      background: var(--card2);
+      border:1px solid rgba(255,255,255,.10);
+      font-family: var(--mono);
+      font-size:12px;
+      color: var(--text);
+      white-space:nowrap;
+    }
+    .pill b{font-weight:800}
+    .main{ padding:18px; display:grid; gap:14px; }
+    .stage{
+      background: rgba(255,255,255,.04);
+      border:1px solid rgba(255,255,255,.08);
+      border-radius: 22px;
+      padding:22px 18px;
+      display:grid;
+      gap:16px;
+      min-height: 340px;
+    }
+    .topWord{
+      text-align:center;
+      font-size: clamp(40px, 5vw, 70px);
+      font-weight: 900;
+      letter-spacing: 1px;
+      line-height: 1.05;
+      margin: 6px 0 0;
+      text-shadow: 0 10px 30px rgba(0,0,0,.25);
+      user-select:none;
+    }
+    .hint{ text-align:center; color: var(--muted); font-size: 12px; user-select:none; }
+    .options{
+      display:grid;
+      grid-template-columns: repeat(2, minmax(0,1fr));
+      gap:12px;
+      margin-top:10px;
+    }
+    @media (max-width: 520px){
+      .options{ 
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        max-height: none;
+        overflow-y: auto;
+        -webkit-overflow-scrolling: touch;
+      }
+      button.opt{
+        min-height: 58px;
+        font-size: 18px;
+        padding: 14px 12px;
+      }
+    }
+    button.opt{
+      cursor:pointer;
+      padding:16px 14px;
+      border-radius: 16px;
+      border: 1px solid rgba(255,255,255,.12);
+      background: rgba(255,255,255,.06);
+      color: var(--text);
+      font-size: 20px;
+      font-weight: 900;
+      letter-spacing:.6px;
+      box-shadow: 0 10px 22px rgba(0,0,0,.22);
+      transition: transform .06s ease, background .12s ease, border-color .12s ease;
+      user-select:none;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      min-height: 62px;
+    }
+    button.opt:hover{ transform: translateY(-1px); background: rgba(255,255,255,.085); }
+    button.opt:active{ transform: translateY(1px) scale(.995); }
+    button.opt:focus-visible{ outline:none; box-shadow: var(--shadow), var(--ring); }
+
+    .controls{ display:flex; gap:10px; flex-wrap:wrap; justify-content:space-between; align-items:center; }
+    .btnrow{display:flex; gap:10px; flex-wrap:wrap;}
+    .btn{
+      cursor:pointer;
+      padding:10px 12px;
+      border-radius: 12px;
+      border:1px solid rgba(255,255,255,.12);
+      background: rgba(255,255,255,.07);
+      color: var(--text);
+      font-weight:700;
+      font-size: 13px;
+      transition: background .12s ease, transform .06s ease;
+    }
+    .btn:hover{ background: rgba(255,255,255,.10); transform: translateY(-1px); }
+    .btn:active{ transform: translateY(1px); }
+    .btn.primary{
+      background: linear-gradient(180deg, rgba(120,160,255,.35), rgba(120,160,255,.15));
+      border-color: rgba(120,160,255,.55);
+    }
+    .btn.danger{
+      background: linear-gradient(180deg, rgba(255,77,109,.22), rgba(255,77,109,.10));
+      border-color: rgba(255,77,109,.45);
+    }
+
+    .status{
+      display:grid;
+      grid-template-columns: repeat(4, minmax(0,1fr));
+      gap:10px;
+    }
+    @media (max-width: 520px){ .status{grid-template-columns: repeat(2, minmax(0,1fr));} }
+    .stat{
+      padding:10px 12px;
+      border-radius: 14px;
+      background: rgba(255,255,255,.05);
+      border:1px solid rgba(255,255,255,.08);
+      display:flex;
+      flex-direction:column;
+      gap:4px;
+    }
+    .stat .k{font-size:11px; color: var(--muted); font-family: var(--mono);}
+    .stat .v{font-size:18px; font-weight:900; font-family: var(--mono);}
+    .v.good{color: var(--good);}
+    .v.bad{color: var(--bad);}
+    .v.warn{color: var(--warn);}
+
+    .side{ padding:18px; display:grid; gap:14px; }
+    .panel{
+      padding:14px 14px;
+      border-radius: 16px;
+      background: rgba(255,255,255,.05);
+      border:1px solid rgba(255,255,255,.08);
+      display:grid;
+      gap:10px;
+    }
+    .side h2{ margin:0; font-size:14px; letter-spacing:.2px; }
+    .row{
+      display:flex;
+      justify-content:space-between;
+      gap:12px;
+      align-items:baseline;
+      font-family: var(--mono);
+      font-size:12px;
+      color: var(--muted);
+    }
+    .row b{color: var(--text); font-weight:900;}
+    .small{ font-size:12px; color: var(--muted); line-height:1.35; }
+
+    .toast{
+      position: fixed;
+      left: 50%;
+      bottom: 18px;
+      transform: translateX(-50%);
+      background: rgba(15,27,51,.86);
+      border:1px solid rgba(255,255,255,.12);
+      border-radius: 999px;
+      padding: 10px 14px;
+      box-shadow: 0 18px 40px rgba(0,0,0,.35);
+      font-family: var(--mono);
+      font-size: 12px;
+      color: var(--text);
+      opacity:0;
+      pointer-events:none;
+      transition: opacity .2s ease, transform .2s ease;
+    }
+    .toast.show{ opacity:1; transform: translateX(-50%) translateY(-6px); }
+    .flash{ animation: flash .18s ease-out; }
+    @keyframes flash{ from{ transform: scale(1.01); } to{ transform: scale(1.0); } }
+
+    .badge{
+      display:inline-flex;
+      align-items:center;
+      gap:8px;
+      padding:8px 10px;
+      border-radius: 999px;
+      border:1px solid rgba(255,255,255,.10);
+      background: rgba(255,255,255,.06);
+      font-family: var(--mono);
+      font-size: 12px;
+      color: var(--muted);
+    }
+    .dot{
+      width:10px; height:10px; border-radius:999px;
+      background: rgba(255,255,255,.2);
+      box-shadow: 0 0 0 3px rgba(255,255,255,.06);
+    }
+    .dot.on{ background: var(--good); box-shadow: 0 0 0 3px rgba(53,208,127,.18); }
+
+    /* ====== CHART ====== */
+    .chartWrap{ display:grid; gap:10px; }
+    canvas#scoresChart{
+      width:100%;
+      height:160px;
+      border-radius: 14px;
+      background: rgba(255,255,255,.04);
+      border:1px solid rgba(255,255,255,.08);
+    }
+    .chartLegend{
+      display:flex;
+      justify-content:space-between;
+      gap:10px;
+      font-family: var(--mono);
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    /* ===== MOBILE FULLSCREEN MODE ===== */
+    @media (max-width: 880px) {
+      body { padding: 0; }
+      .wrap {
+        width: 100vw;
+        height: 100vh;
+        grid-template-columns: 1fr;
+        gap: 0;
+      }
+      .card {
+        border-radius: 0;
+        height: 100vh;
+        overflow-y: auto;
+        -webkit-overflow-scrolling: touch;
+      }
+      .card.stats { display: none; }
+      .card.active { display: block; }
+      .card .hd { 
+        padding: 12px 14px;
+        position: sticky;
+        top: 0;
+        background: var(--card);
+        z-index: 10;
+        border-bottom: 1px solid rgba(255,255,255,.08);
+      }
+      .main { 
+        padding: 12px;
+      }
+      .stage {
+        padding: 16px 12px;
+      }
+      .stage .options {
+        max-height: none;
+        overflow: visible;
+      }
+      .mobile-toggle {
+        position: fixed;
+        top: 10px;
+        right: 10px;
+        z-index: 999;
+        padding: 10px 12px;
+        border-radius: 999px;
+        border: 1px solid rgba(255,255,255,.15);
+        background: rgba(15,27,51,.85);
+        color: var(--text);
+        font-weight: 800;
+        font-size: 12px;
+        backdrop-filter: blur(8px);
+        cursor: pointer;
+        box-shadow: var(--shadow);
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <div class="wrap">
+    <section class="card game active">
+      <div class="hd">
+        <div class="title">
+          <h1>Stroop Match Trainer</h1>
+          <div class="sub">Elegí abajo la palabra que coincide con el <b>color</b> del texto de arriba (no con lo que dice).</div>
+        </div>
+        <div class="pillrow" id="pillrow">
+          <div class="pill">Duración: <b>90s</b></div>
+          <div class="pill">+1 correcto / -0.5 incorrecto</div>
+          <div class="pill" id="pillPass">Subís si ≥ <b id="pillPassScore">—</b> pts y precisión ≥ <b id="pillPassAcc">—</b>%</div>
+        </div>
+      </div>
+
+      <div class="main">
+        <div class="controls">
+          <div class="btnrow">
+            <button class="btn primary" id="btnStart">▶ Iniciar</button>
+            <button class="btn" id="btnStop" disabled>⏹ Detener</button>
+            <button class="btn" id="btnRestart" disabled>↻ Reiniciar</button>
+            <button class="btn" id="btnDualMode" style="display:none;">🧠 Modo Dual: OFF</button>
+          </div>
+          <div class="badge" title="Estado">
+            <span class="dot" id="dotRun"></span>
+            <span id="lblState">Listo</span>
+          </div>
+        </div>
+
+        <div class="status">
+          <div class="stat"><div class="k">NIVEL</div><div class="v" id="vLevel">1</div></div>
+          <div class="stat"><div class="k">PUNTAJE</div><div class="v" id="vScore">0</div></div>
+          <div class="stat"><div class="k">TIEMPO</div><div class="v" id="vTime">90.0</div></div>
+          <div class="stat"><div class="k">ACIERTO</div><div class="v" id="vAcc">—</div></div>
+        </div>
+
+        <div class="stage" id="stage">
+          <div class="hint" id="hintTop">Arriba: palabra con color (puede ser congruente o no)</div>
+          <div class="topWord" id="topWord">ROJO</div>
+
+          <div class="hint" id="hintBottom">Abajo: elegí la palabra que coincide con el color de arriba</div>
+          <div class="options" id="options"></div>
+
+          <div class="small" id="stageHint">
+            <b>Regla:</b> correcto si la <b>palabra elegida abajo</b> coincide con el <b>color del texto de arriba</b>.
+            <br/>En cada nivel se alterna: primero se agrega <b>un color</b>, luego se agrega <b>una opción</b>.
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <aside class="card stats">
+      <div class="hd">
+        <div class="title">
+          <h1>Estadísticas</h1>
+          <div class="sub">Se guardan en tu navegador (localStorage).</div>
+        </div>
+        <div class="pillrow">
+          <button class="btn danger" id="btnResetStats">Borrar stats</button>
+        </div>
+      </div>
+
+      <div class="side">
+        <div class="panel">
+          <h2>Progreso</h2>
+          <div class="row"><span>Nivel actual</span><b id="sCurLevel">1</b></div>
+          <div class="row"><span>Mejor nivel alcanzado</span><b id="sMaxLevel">1</b></div>
+          <div class="row"><span>Intentos totales</span><b id="sAttempts">0</b></div>
+        </div>
+
+        <div class="panel">
+          <h2>Puntajes en el tiempo</h2>
+          <div class="chartWrap">
+            <canvas id="scoresChart" width="900" height="260"></canvas>
+            <div class="chartLegend">
+              <span>Sesiones: <b id="sSessionsCount">0</b></span>
+              <span>Mejor puntaje: <b id="sBestEver">—</b></span>
+            </div>
+          </div>
+          <div class="small">Línea = puntaje final por sesión (orden cronológico).</div>
+        </div>
+
+        <div class="panel">
+          <h2>Última sesión</h2>
+          <div class="row"><span>Puntaje</span><b id="sLastScore">—</b></div>
+          <div class="row"><span>Aciertos / Errores</span><b id="sLastCE">—</b></div>
+          <div class="row"><span>Precisión</span><b id="sLastAcc">—</b></div>
+          <div class="row"><span>RT promedio</span><b id="sLastRT">—</b></div>
+          <div class="row"><span>Rondas guardadas</span><b id="sLastRounds">—</b></div>
+        </div>
+
+        <div class="panel">
+          <h2>Mejores por nivel</h2>
+          <div class="small" id="bestByLevel">—</div>
+        </div>
+
+        <div class="panel">
+          <h2>Cómo escala el nivel</h2>
+          <div class="small" id="lvlExplain">—</div>
+        </div>
+      </div>
+    </aside>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <!-- Botón mobile -->
+  <button class="mobile-toggle" id="btnToggleView">📊 Stats</button>
+
+  <script>
+    (() => {
+      // ====== CONFIG ======
+      const SESSION_SECONDS = 90.0;
+      const SCORE_CORRECT = +1;
+      const SCORE_WRONG = -0.5;
+
+      const COLOR_POOL = [
+        { name: "ROJO",  css: "#ff3b5c" },
+        { name: "AZUL",  css: "#3b82f6" },
+        { name: "VERDE", css: "#22c55e" },
+        { name: "AMARILLO", css: "#facc15" },
+        { name: "VIOLETA", css: "#a855f7" },
+        { name: "NARANJA", css: "#fb923c" },
+        { name: "CIAN", css: "#22d3ee" },
+        { name: "ROSA", css: "#fb7185" },
+      ];
+
+      // ====== STORAGE ======
+      const KEY = "stroop_match_trainer_v2";
+
+      function loadState(){
+        try{
+          const raw = localStorage.getItem(KEY);
+          if(!raw) return {
+            currentLevel: 1,
+            maxLevel: 1,
+            attempts: 0,
+            bestByLevel: {},
+            lastSession: null,
+            sessions: [],
+            dualUnlocked: false,
+            mode: "normal"
+          };
+          const obj = JSON.parse(raw);
+          return {
+            currentLevel: Math.max(1, obj.currentLevel || 1),
+            maxLevel: Math.max(1, obj.maxLevel || 1),
+            attempts: obj.attempts || 0,
+            bestByLevel: obj.bestByLevel || {},
+            lastSession: obj.lastSession || null,
+            sessions: Array.isArray(obj.sessions) ? obj.sessions : [],
+            dualUnlocked: obj.dualUnlocked === true,
+            mode: obj.mode === "dual" ? "dual" : "normal"
+          };
+        }catch(e){
+          return { currentLevel: 1, maxLevel: 1, attempts: 0, bestByLevel: {}, lastSession: null, sessions: [], dualUnlocked: false, mode: "normal" };
+        }
+      }
+      function saveState(){
+        localStorage.setItem(KEY, JSON.stringify(appState));
+      }
+
+      let appState = loadState();
+
+      // ====== LEVEL LOGIC ======
+      function colorsCountForLevel(level){
+        return 2 + Math.floor(level / 2);
+      }
+      function optionsCountForLevel(level){
+        return 2 + Math.floor((level - 1) / 2);
+      }
+      function getLevelInfo(level){
+        const c = Math.min(colorsCountForLevel(level), COLOR_POOL.length);
+        const o = Math.min(optionsCountForLevel(level), c);
+        return { colorsCount: c, optionsCount: o };
+      }
+      
+      // ====== PROGRESSION FUNCTIONS ======
+      function passScoreForLevel(level){
+        return 60 + level * 12;
+      }
+      function minAccuracyForLevel(level){
+        // 75% en nivel 1, sube 1% por nivel hasta max 85%
+        return Math.min(0.85, 0.75 + level * 0.01);
+      }
+      function fastRTms(level){
+        // 950ms en lvl1, baja 30ms por nivel, mínimo 700ms
+        return Math.max(700, 950 - level * 30);
+      }
+      function speedBonusPoints(level){
+        // entre 0.2 y 0.35 aprox
+        return Math.min(0.35, 0.20 + level * 0.015);
+      }
+
+      // ====== UI ELEMENTS ======
+      const el = (id) => document.getElementById(id);
+
+      const topWord = el("topWord");
+      const optionsBox = el("options");
+      const vLevel = el("vLevel");
+      const vScore = el("vScore");
+      const vTime = el("vTime");
+      const vAcc = el("vAcc");
+
+      const btnStart = el("btnStart");
+      const btnStop = el("btnStop");
+      const btnRestart = el("btnRestart");
+
+      const dotRun = el("dotRun");
+      const lblState = el("lblState");
+      const stage = el("stage");
+
+      const toast = el("toast");
+
+      const sCurLevel = el("sCurLevel");
+      const sMaxLevel = el("sMaxLevel");
+      const sAttempts = el("sAttempts");
+
+      const sLastScore = el("sLastScore");
+      const sLastCE = el("sLastCE");
+      const sLastAcc = el("sLastAcc");
+      const sLastRT = el("sLastRT");
+      const sLastRounds = el("sLastRounds");
+
+      const bestByLevel = el("bestByLevel");
+      const lvlExplain = el("lvlExplain");
+
+      const btnResetStats = el("btnResetStats");
+      const btnDualMode = el("btnDualMode");
+      const pillPass = el("pillPass");
+      const pillPassScore = el("pillPassScore");
+      const pillPassAcc = el("pillPassAcc");
+      const hintTop = el("hintTop");
+      const hintBottom = el("hintBottom");
+      const stageHint = el("stageHint");
+
+      const chart = el("scoresChart");
+      const sSessionsCount = el("sSessionsCount");
+      const sBestEver = el("sBestEver");
+
+      // ====== GAME STATE ======
+      let running = false;
+      let timeLeft = SESSION_SECONDS;
+      let score = 0;
+      let correct = 0;
+      let wrong = 0;
+
+      let currentPalette = [];
+      let correctColor = null;
+      let lastStimulusAt = null;
+      let rtSum = 0;
+      let rtCount = 0;
+
+      let timerHandle = null;
+
+      // tracking por ronda
+      let sessionRounds = [];
+      
+      // ====== NEW STATE ======
+      let streak = 0; // racha actual
+      let speedBonusAccum = 0; // acumulador de speed bonus para anticheese
+      let totalSelections = 0; // total de selecciones (para dual mode)
+      let totalCorrectSelections = 0; // total de selecciones correctas (para dual mode)
+      
+      // Dual mode state
+      let dualTargets = []; // [colorA, colorB] en modo dual
+      let dualChosen = []; // selecciones del usuario
+      let dualRTs = []; // [rt1, rt2]
+      let dualStimulusStart = null;
+      let waitingForSecondClick = false;
+
+      // ====== HELPERS ======
+      function randInt(n){ return Math.floor(Math.random() * n); }
+      function shuffle(arr){
+        const a = arr.slice();
+        for(let i=a.length-1;i>0;i--){
+          const j = Math.floor(Math.random()*(i+1));
+          [a[i], a[j]] = [a[j], a[i]];
+        }
+        return a;
+      }
+      function pickOne(arr){ return arr[randInt(arr.length)]; }
+      function pickManyDistinct(arr, k){
+        return shuffle(arr).slice(0, Math.min(k, arr.length));
+      }
+      function fmt1(x){ return (Math.round(x*10)/10).toFixed(1); }
+      function fmtPct(x){
+        if(!isFinite(x)) return "—";
+        return `${Math.round(x)}%`;
+      }
+      function showToast(msg){
+        toast.textContent = msg;
+        toast.classList.add("show");
+        setTimeout(() => toast.classList.remove("show"), 1300);
+      }
+      function setRunningUI(on){
+        dotRun.classList.toggle("on", on);
+        lblState.textContent = on ? "Jugando" : "Listo";
+        btnStart.disabled = on;
+        btnStop.disabled = !on;
+        btnRestart.disabled = !on;
+      }
+
+      // ====== CHART ======
+      function drawScoresChart(){
+        if(!chart) return;
+
+        const ctx = chart.getContext("2d");
+        const W = chart.width;
+        const H = chart.height;
+        ctx.clearRect(0,0,W,H);
+
+        const sessions = Array.isArray(appState.sessions) ? appState.sessions : [];
+        const scores = sessions.map(s => Number(s.score)).filter(x => Number.isFinite(x));
+
+        sSessionsCount.textContent = String(scores.length);
+
+        if(scores.length === 0){
+          sBestEver.textContent = "—";
+          ctx.globalAlpha = 0.85;
+          ctx.font = "16px ui-monospace, Menlo, Consolas, monospace";
+          ctx.fillStyle = "rgba(233,238,252,.75)";
+          ctx.fillText("Todavía no hay sesiones guardadas.", 18, 46);
+          ctx.font = "12px ui-monospace, Menlo, Consolas, monospace";
+          ctx.fillStyle = "rgba(233,238,252,.55)";
+          ctx.fillText("Jugá al menos 1 sesión para ver el gráfico.", 18, 70);
+          ctx.globalAlpha = 1;
+          return;
+        }
+
+        const best = Math.max(...scores);
+        sBestEver.textContent = String(best);
+
+        const padL = 42, padR = 14, padT = 16, padB = 30;
+        const iw = W - padL - padR;
+        const ih = H - padT - padB;
+
+        let minY = Math.min(...scores);
+        let maxY = Math.max(...scores);
+        if(minY === maxY){ minY -= 1; maxY += 1; }
+        const extra = Math.max(1, Math.round((maxY - minY) * 0.1));
+        minY -= extra; maxY += extra;
+
+        const xFor = (i) => padL + (iw * (scores.length === 1 ? 0 : (i/(scores.length-1))));
+        const yFor = (v) => padT + (ih * (1 - ((v - minY) / (maxY - minY))));
+
+        ctx.lineWidth = 1;
+        ctx.strokeStyle = "rgba(255,255,255,.10)";
+        for(let k=0;k<=3;k++){
+          const y = padT + (ih * (k/3));
+          ctx.beginPath(); ctx.moveTo(padL, y); ctx.lineTo(padL+iw, y); ctx.stroke();
+        }
+
+        ctx.strokeStyle = "rgba(255,255,255,.16)";
+        ctx.beginPath(); ctx.moveTo(padL, padT); ctx.lineTo(padL, padT+ih); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(padL, padT+ih); ctx.lineTo(padL+iw, padT+ih); ctx.stroke();
+
+        ctx.fillStyle = "rgba(233,238,252,.65)";
+        ctx.font = "12px ui-monospace, Menlo, Consolas, monospace";
+        ctx.fillText(String(Math.round(maxY)), 8, padT + 12);
+        ctx.fillText(String(Math.round(minY)), 8, padT + ih);
+
+        ctx.lineWidth = 2;
+        ctx.strokeStyle = "rgba(120,160,255,.95)";
+        ctx.beginPath();
+        scores.forEach((v,i) => {
+          const x = xFor(i);
+          const y = yFor(v);
+          if(i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
+        });
+        ctx.stroke();
+
+        ctx.fillStyle = "rgba(255,255,255,.9)";
+        scores.forEach((v,i) => {
+          const x = xFor(i);
+          const y = yFor(v);
+          ctx.beginPath();
+          ctx.arc(x,y,3,0,Math.PI*2);
+          ctx.fill();
+        });
+
+        ctx.fillStyle = "rgba(233,238,252,.55)";
+        ctx.font = "12px ui-monospace, Menlo, Consolas, monospace";
+        ctx.fillText(`Sesiones (1 … ${scores.length})`, padL, H - 10);
+      }
+
+      function renderStatsPanel(){
+        sCurLevel.textContent = appState.currentLevel;
+        sMaxLevel.textContent = appState.maxLevel;
+        sAttempts.textContent = appState.attempts;
+
+        const ls = appState.lastSession;
+        if(!ls){
+          sLastScore.textContent = "—";
+          sLastCE.textContent = "—";
+          sLastAcc.textContent = "—";
+          sLastRT.textContent = "—";
+          sLastRounds.textContent = "—";
+        }else{
+          sLastScore.textContent = ls.score != null ? Math.round(ls.score * 10) / 10 : "—";
+          sLastCE.textContent = `${ls.correct || 0} / ${ls.wrong || 0}`;
+          if(ls.mode === "dual"){
+            sLastCE.textContent += " (dual)";
+          }
+          sLastAcc.textContent = fmtPct(ls.accuracy);
+          sLastRT.textContent = (ls.avgRTms != null) ? `${Math.round(ls.avgRTms)} ms` : "—";
+          sLastRounds.textContent = Array.isArray(ls.rounds) ? String(ls.rounds.length) : "—";
+        }
+
+        const keys = Object.keys(appState.bestByLevel).map(k=>parseInt(k,10)).sort((a,b)=>a-b);
+        if(keys.length === 0){
+          bestByLevel.textContent = "Todavía no hay récords guardados.";
+        }else{
+          bestByLevel.innerHTML = keys.map(k => {
+            const info = getLevelInfo(k);
+            return `Nivel <b>${k}</b> (colores ${info.colorsCount}, opciones ${info.optionsCount}) — mejor: <b>${appState.bestByLevel[k]}</b>`;
+          }).join("<br/>");
+        }
+
+        const cur = appState.currentLevel;
+        const lines = [];
+        lines.push(`Nivel <b>${cur}</b>: ${getLevelInfo(cur).colorsCount} colores, ${getLevelInfo(cur).optionsCount} opciones`);
+        lines.push(`Puntaje para subir: <b>${passScoreForLevel(cur)}</b> pts`);
+        lines.push(`Precisión mínima: <b>${Math.round(minAccuracyForLevel(cur) * 100)}%</b>`);
+        lines.push(`RT rápido: <b><${fastRTms(cur)}ms</b>`);
+        for(let lv=cur+1; lv<=cur+4; lv++){
+          const info = getLevelInfo(lv);
+          lines.push(`Nivel <b>${lv}</b>: ${info.colorsCount} colores, ${info.optionsCount} opciones`);
+        }
+        lvlExplain.innerHTML = lines.join("<br/>");
+
+        drawScoresChart();
+      }
+
+      function renderHUD(){
+        vLevel.textContent = appState.currentLevel;
+        vScore.textContent = Math.round(score * 10) / 10; // mostrar 1 decimal
+        vTime.textContent = fmt1(timeLeft);
+
+        const level = appState.currentLevel;
+        let acc;
+        if(appState.mode === "dual"){
+          acc = totalSelections > 0 ? (totalCorrectSelections / totalSelections) * 100 : null;
+        }else{
+          const total = correct + wrong;
+          acc = total > 0 ? (correct/total)*100 : null;
+        }
+        vAcc.textContent = acc != null ? fmtPct(acc) : "—";
+
+        const passScore = passScoreForLevel(level);
+        vScore.classList.toggle("good", score >= passScore);
+        vScore.classList.toggle("bad", score < 0);
+        vTime.classList.toggle("warn", timeLeft <= 10);
+      }
+      
+      function updatePills(){
+        const level = appState.currentLevel;
+        const pass = passScoreForLevel(level);
+        const minAcc = minAccuracyForLevel(level);
+        pillPassScore.textContent = pass;
+        pillPassAcc.textContent = Math.round(minAcc * 100);
+      }
+
+      function applyLevelPalette(){
+        const info = getLevelInfo(appState.currentLevel);
+        currentPalette = COLOR_POOL.slice(0, info.colorsCount);
+      }
+
+      function newRound(){
+        if(!running) return;
+        
+        if(appState.mode === "dual"){
+          newRoundDual();
+          return;
+        }
+
+        const info = getLevelInfo(appState.currentLevel);
+
+        const topText = pickOne(currentPalette).name;
+        correctColor = pickOne(currentPalette);
+        topWord.textContent = topText;
+        topWord.style.color = correctColor.css;
+
+        const correctName = correctColor.name;
+        const distractPool = currentPalette.filter(c => c.name !== correctName);
+        const distractCount = Math.max(0, info.optionsCount - 1);
+        const distractors = pickManyDistinct(distractPool, distractCount);
+
+        let options = [correctColor, ...distractors].map(c => c.name);
+        options = shuffle(options);
+
+        optionsBox.innerHTML = "";
+        options.forEach(name => {
+          const btn = document.createElement("button");
+          btn.className = "opt";
+          btn.textContent = name;
+          btn.style.color = pickOne(currentPalette).css;
+          btn.addEventListener("click", () => onAnswer(name, btn));
+          optionsBox.appendChild(btn);
+        });
+
+        lastStimulusAt = performance.now();
+      }
+      
+      function newRoundDual(){
+        if(!running) return;
+        
+        const info = getLevelInfo(appState.currentLevel);
+        
+        // Asegurar al menos 2 colores en paleta
+        const minColors = Math.max(2, info.colorsCount);
+        const palette = COLOR_POOL.slice(0, Math.max(minColors, currentPalette.length));
+        
+        // Elegir dos colores objetivo distintos
+        dualTargets = pickManyDistinct(palette, 2);
+        dualChosen = [];
+        dualRTs = [];
+        waitingForSecondClick = false;
+        
+        // Mostrar estímulo secuencial
+        const textWord = "DUAL";
+        topWord.textContent = textWord;
+        
+        // Secuencia: color A (150ms) -> neutro (50ms) -> color B (150ms)
+        const colorA = dualTargets[0];
+        const colorB = dualTargets[1];
+        
+        topWord.style.color = colorA.css;
+        dualStimulusStart = performance.now();
+        
+        setTimeout(() => {
+          if(!running) return;
+          topWord.style.color = "rgba(233,238,252,.4)"; // neutro
+        }, 150);
+        
+        setTimeout(() => {
+          if(!running) return;
+          topWord.style.color = colorB.css;
+        }, 200);
+        
+        setTimeout(() => {
+          if(!running) return;
+          // Dejar con color B o neutro
+          topWord.style.color = "rgba(233,238,252,.6)";
+          
+          // Renderizar opciones (mínimo 4 en modo dual)
+          const optionsCount = Math.max(4, info.optionsCount);
+          const allOptions = shuffle(palette).slice(0, optionsCount);
+          // Asegurar que los targets estén en las opciones
+          const optionsSet = new Set([...allOptions.map(c => c.name), colorA.name, colorB.name]);
+          const finalOptions = Array.from(optionsSet).slice(0, optionsCount);
+          
+          optionsBox.innerHTML = "";
+          finalOptions.forEach(name => {
+            const btn = document.createElement("button");
+            btn.className = "opt";
+            btn.textContent = name;
+            btn.style.color = pickOne(palette).css;
+            btn.addEventListener("click", () => onAnswerDual(name, btn));
+            optionsBox.appendChild(btn);
+          });
+        }, 350);
+      }
+
+      function onAnswer(chosenName, btn){
+        if(!running) return;
+
+        optionsBox.querySelectorAll("button").forEach(b => b.disabled = true);
+
+        const correctName = correctColor.name;
+        const ok = chosenName === correctName;
+
+        const now = performance.now();
+        let rt = null;
+        if(lastStimulusAt != null){
+          rt = now - lastStimulusAt;
+          rtSum += rt;
+          rtCount += 1;
+        }
+
+        let roundScore = 0;
+        let speedBonus = 0;
+        
+        if(ok){
+          roundScore = SCORE_CORRECT;
+          correct += 1;
+          streak += 1;
+          
+          // Bonus por racha (cada 5 aciertos seguidos)
+          if(streak % 5 === 0){
+            roundScore += 2;
+            showToast(`¡Racha de ${streak}! +2 puntos`);
+          }
+          
+          // Bonus por velocidad (solo si correcto y rt rápido)
+          if(rt != null && rt < fastRTms(appState.currentLevel)){
+            speedBonus = speedBonusPoints(appState.currentLevel);
+            speedBonusAccum += speedBonus;
+            roundScore += speedBonus;
+          }
+          
+          btn.style.borderColor = "rgba(53,208,127,.55)";
+          btn.style.background = "rgba(53,208,127,.12)";
+        }else{
+          roundScore = SCORE_WRONG;
+          wrong += 1;
+          streak = 0; // reset racha
+          btn.style.borderColor = "rgba(255,77,109,.55)";
+          btn.style.background = "rgba(255,77,109,.12)";
+          showToast(`Incorrecto → era ${correctName}`);
+        }
+        
+        score += roundScore;
+
+        // guardar por ronda (acumulados)
+        sessionRounds.push({
+          idx: sessionRounds.length + 1,
+          tLeft: Number(fmt1(timeLeft)),
+          score,
+          correct,
+          wrong,
+          ok,
+          rt: rt != null ? Math.round(rt) : null,
+          speedBonus: speedBonus > 0 ? Math.round(speedBonus * 100) / 100 : null
+        });
+
+        stage.classList.remove("flash");
+        void stage.offsetWidth;
+        stage.classList.add("flash");
+
+        renderHUD();
+
+        setTimeout(() => {
+          if(running) newRound();
+        }, 10);
+      }
+      
+      function onAnswerDual(chosenName, btn){
+        if(!running) return;
+        
+        const now = performance.now();
+        let rt = null;
+        if(dualStimulusStart != null){
+          rt = now - dualStimulusStart;
+        }
+        
+        // Si ya eligió este color, ignorar
+        if(dualChosen.includes(chosenName)){
+          return;
+        }
+        
+        dualChosen.push(chosenName);
+        dualRTs.push(rt);
+        
+        // Marcar botón como seleccionado
+        btn.style.borderColor = "rgba(120,160,255,.55)";
+        btn.style.background = "rgba(120,160,255,.12)";
+        
+        // Si ya eligió 2, evaluar
+        if(dualChosen.length === 2){
+          optionsBox.querySelectorAll("button").forEach(b => b.disabled = true);
+          
+          const targets = dualTargets.map(c => c.name);
+          const chosenSet = dualChosen;
+          
+          // Contar aciertos (sin importar orden, pero sin duplicados)
+          let correctCount = 0;
+          const targetSet = new Set(targets);
+          for(const chosen of chosenSet){
+            if(targetSet.has(chosen)){
+              correctCount++;
+            }
+          }
+          
+          totalSelections += 2;
+          totalCorrectSelections += correctCount;
+          
+          // Actualizar contadores
+          if(correctCount === 2){
+            correct += 1;
+            streak += 1;
+          }else if(correctCount === 0){
+            wrong += 1;
+            streak = 0;
+          }
+          
+          // Calcular puntaje
+          let roundScore = 0;
+          let speedBonus = 0;
+          
+          if(correctCount === 2){
+            roundScore = 2.0;
+            // Bonus velocidad dual (solo si ambos correctos)
+            const avgRTdual = (dualRTs[0] + dualRTs[1]) / 2;
+            const fastRTdual = fastRTms(appState.currentLevel) + 50;
+            if(avgRTdual < fastRTdual){
+              speedBonus = speedBonusPoints(appState.currentLevel);
+              speedBonusAccum += speedBonus;
+              roundScore += speedBonus;
+            }
+            
+            // Bonus racha
+            if(streak % 5 === 0){
+              roundScore += 2;
+              showToast(`¡Racha de ${streak}! +2 puntos`);
+            }
+          }else if(correctCount === 1){
+            roundScore = 0.5;
+            streak = 0;
+          }else{
+            roundScore = -1.0;
+            streak = 0;
+          }
+          
+          score += roundScore;
+          
+          // Actualizar RT tracking
+          rtSum += dualRTs[0];
+          rtSum += dualRTs[1];
+          rtCount += 2;
+          
+          // Feedback visual
+          if(correctCount === 2){
+            showToast("¡Ambos correctos!");
+          }else if(correctCount === 1){
+            showToast(`1 correcto. Objetivos: ${targets.join(", ")}`);
+          }else{
+            showToast(`Incorrecto. Objetivos: ${targets.join(", ")}`);
+          }
+          
+          // Guardar ronda
+          sessionRounds.push({
+            idx: sessionRounds.length + 1,
+            tLeft: Number(fmt1(timeLeft)),
+            score,
+            correctCount,
+            ok2: correctCount === 2,
+            rt1: Math.round(dualRTs[0]),
+            rt2: Math.round(dualRTs[1]),
+            targets: targets,
+            chosen: chosenSet,
+            speedBonus: speedBonus > 0 ? Math.round(speedBonus * 100) / 100 : null
+          });
+          
+          stage.classList.remove("flash");
+          void stage.offsetWidth;
+          stage.classList.add("flash");
+          
+          renderHUD();
+          
+          setTimeout(() => {
+            if(running) newRound();
+          }, 300);
+        }
+      }
+
+      function tick(){
+        if(!running) return;
+        timeLeft = Math.max(0, timeLeft - 0.1);
+        renderHUD();
+        if(timeLeft <= 0){
+          endSession(false);
+        }
+      }
+
+      function startSession(){
+        if(running) return;
+
+        running = true;
+        timeLeft = SESSION_SECONDS;
+        score = 0;
+        correct = 0;
+        wrong = 0;
+        rtSum = 0;
+        rtCount = 0;
+        lastStimulusAt = null;
+        sessionRounds = [];
+        streak = 0;
+        speedBonusAccum = 0;
+        totalSelections = 0;
+        totalCorrectSelections = 0;
+        dualTargets = [];
+        dualChosen = [];
+        dualRTs = [];
+        waitingForSecondClick = false;
+
+        applyLevelPalette();
+        renderHUD();
+        setRunningUI(true);
+        updatePills();
+
+        appState.attempts += 1;
+        saveState();
+        renderStatsPanel();
+
+        newRound();
+        timerHandle = setInterval(tick, 100);
+      }
+
+      function endSession(manual){
+        if(!running) return;
+
+        running = false;
+        clearInterval(timerHandle);
+        timerHandle = null;
+        setRunningUI(false);
+
+        // Calcular precisión según modo
+        let acc;
+        if(appState.mode === "dual"){
+          acc = totalSelections > 0 ? (totalCorrectSelections / totalSelections) * 100 : null;
+        }else{
+          const total = correct + wrong;
+          acc = total ? (correct/total)*100 : null;
+        }
+        
+        const avgRT = rtCount ? (rtSum/rtCount) : null;
+        
+        // Anticheese: si precisión < 75%, anular speed bonus
+        if(acc != null && acc < 75){
+          score -= speedBonusAccum;
+          speedBonusAccum = 0;
+        }
+
+        const session = {
+          at: new Date().toISOString(),
+          level: appState.currentLevel,
+          mode: appState.mode,
+          score: Math.round(score * 10) / 10,
+          correct,
+          wrong,
+          accuracy: acc,
+          avgRTms: avgRT,
+          rounds: sessionRounds.slice(),
+          passScore: passScoreForLevel(appState.currentLevel),
+          minAcc: minAccuracyForLevel(appState.currentLevel),
+          speedBonusAccum: Math.round(speedBonusAccum * 10) / 10,
+          streakMax: streak
+        };
+
+        appState.lastSession = session;
+
+        appState.sessions = Array.isArray(appState.sessions) ? appState.sessions : [];
+        appState.sessions.push({
+          at: session.at,
+          score: session.score,
+          level: session.level,
+          correct: session.correct,
+          wrong: session.wrong,
+          mode: session.mode
+        });
+        if(appState.sessions.length > 400) appState.sessions = appState.sessions.slice(-400);
+
+        const lv = appState.currentLevel;
+        const prevBest = appState.bestByLevel[lv];
+        if(prevBest == null || score > prevBest){
+          appState.bestByLevel[lv] = score;
+        }
+
+        // Desbloquear modo dual
+        if(!manual && !appState.dualUnlocked && lv >= 9 && acc != null && acc >= 85 && avgRT != null && avgRT <= 800){
+          appState.dualUnlocked = true;
+          showToast("¡Desbloqueaste Modo Dual!");
+          updateDualButton();
+        }
+
+        // Subir nivel (doble condición)
+        if(!manual){
+          const pass = passScoreForLevel(lv);
+          const minAcc = minAccuracyForLevel(lv) * 100;
+          if(score >= pass && acc != null && acc >= minAcc){
+            appState.currentLevel += 1;
+            appState.maxLevel = Math.max(appState.maxLevel, appState.currentLevel);
+            showToast(`¡Subiste a nivel ${appState.currentLevel}!`);
+          }else{
+            showToast(`Fin: ${Math.round(score * 10) / 10} pts (nivel ${lv})`);
+          }
+        }
+
+        saveState();
+        renderStatsPanel();
+        renderHUD();
+        updatePills();
+
+        optionsBox.querySelectorAll("button").forEach(b => b.disabled = true);
+      }
+
+      function stopSession(){ endSession(true); }
+      function restartSession(){
+        if(running) stopSession();
+        startSession();
+      }
+
+      function resetStats(){
+        if(running) stopSession();
+        localStorage.removeItem(KEY);
+        appState = loadState();
+        score = 0; correct = 0; wrong = 0; timeLeft = SESSION_SECONDS;
+        sessionRounds = [];
+        renderHUD();
+        renderStatsPanel();
+        updatePills();
+        updateDualButton();
+        showToast("Stats borradas.");
+      }
+      
+      function updateDualButton(){
+        if(appState.dualUnlocked){
+          btnDualMode.style.display = "block";
+          const isDual = appState.mode === "dual";
+          btnDualMode.textContent = isDual ? "🧠 Modo Dual: ON" : "🧠 Modo Dual: OFF";
+          btnDualMode.classList.toggle("primary", isDual);
+        }else{
+          btnDualMode.style.display = "none";
+        }
+      }
+      
+      function toggleDualMode(){
+        if(!appState.dualUnlocked) return;
+        appState.mode = appState.mode === "dual" ? "normal" : "dual";
+        saveState();
+        updateDualButton();
+        
+        // Actualizar hints según modo
+        if(appState.mode === "dual"){
+          hintTop.textContent = "Arriba: dos colores en secuencia rápida";
+          hintBottom.textContent = "Abajo: elegí los DOS colores que viste (2 clicks)";
+          stageHint.innerHTML = `<b>Modo Dual:</b> Se muestran dos colores en secuencia. Debes recordar y seleccionar ambos (2 clicks).<br/>Ambos correctos: +2.0 | Uno correcto: +0.5 | Ambos incorrectos: -1.0`;
+        }else{
+          hintTop.textContent = "Arriba: palabra con color (puede ser congruente o no)";
+          hintBottom.textContent = "Abajo: elegí la palabra que coincide con el color de arriba";
+          stageHint.innerHTML = `<b>Regla:</b> correcto si la <b>palabra elegida abajo</b> coincide con el <b>color del texto de arriba</b>.<br/>En cada nivel se alterna: primero se agrega <b>un color</b>, luego se agrega <b>una opción</b>.`;
+        }
+        
+        showToast(`Modo: ${appState.mode === "dual" ? "Dual" : "Normal"}`);
+      }
+
+      // ====== INIT ======
+      btnStart.addEventListener("click", startSession);
+      btnStop.addEventListener("click", stopSession);
+      btnRestart.addEventListener("click", restartSession);
+      btnResetStats.addEventListener("click", resetStats);
+      btnDualMode.addEventListener("click", toggleDualMode);
+
+      renderStatsPanel();
+      renderHUD();
+      updatePills();
+      applyLevelPalette();
+      updateDualButton();
+
+      // Demo visual (no running)
+      (function demo(){
+        if(appState.mode === "dual"){
+          const info = getLevelInfo(appState.currentLevel);
+          currentPalette = COLOR_POOL.slice(0, Math.max(2, info.colorsCount));
+          topWord.textContent = "DUAL";
+          topWord.style.color = "rgba(233,238,252,.6)";
+          
+          const optionsCount = Math.max(4, info.optionsCount);
+          const opts = shuffle(currentPalette).slice(0, optionsCount).map(c => c.name);
+          
+          optionsBox.innerHTML = "";
+          opts.forEach(name => {
+            const btn = document.createElement("button");
+            btn.className = "opt";
+            btn.textContent = name;
+            btn.style.color = pickOne(currentPalette).css;
+            btn.disabled = true;
+            optionsBox.appendChild(btn);
+          });
+        }else{
+          const info = getLevelInfo(appState.currentLevel);
+          currentPalette = COLOR_POOL.slice(0, info.colorsCount);
+          correctColor = pickOne(currentPalette);
+          topWord.textContent = pickOne(currentPalette).name;
+          topWord.style.color = correctColor.css;
+
+          const correctName = correctColor.name;
+          const distractPool = currentPalette.filter(c => c.name !== correctName);
+          const distractCount = Math.max(0, info.optionsCount - 1);
+          const distractors = pickManyDistinct(distractPool, distractCount);
+
+          let opts = [correctColor, ...distractors].map(c=>c.name);
+          opts = shuffle(opts);
+
+          optionsBox.innerHTML = "";
+          opts.forEach(name => {
+            const btn = document.createElement("button");
+            btn.className = "opt";
+            btn.textContent = name;
+            btn.style.color = pickOne(currentPalette).css;
+            btn.disabled = true;
+            optionsBox.appendChild(btn);
+          });
+        }
+      })();
+
+      // ===== MOBILE VIEW TOGGLE (robusto) =====
+      document.addEventListener("DOMContentLoaded", () => {
+        const btnToggleView = document.getElementById("btnToggleView");
+        const gameCard = document.querySelector(".card.game");
+        const statsCard = document.querySelector(".card.stats");
+        if(!btnToggleView || !gameCard || !statsCard) return;
+
+        let showingStats = false;
+
+        function updateToggleLabel() {
+          btnToggleView.textContent = showingStats ? "🎮 Juego" : "📊 Stats";
+        }
+
+        btnToggleView.addEventListener("click", () => {
+          showingStats = !showingStats;
+          gameCard.classList.toggle("active", !showingStats);
+          statsCard.classList.toggle("active", showingStats);
+          updateToggleLabel();
+
+          // por si el canvas estaba oculto, redibujo
+          setTimeout(() => drawScoresChart(), 50);
+        });
+
+        updateToggleLabel();
+      });
+
+      // También redibujo el chart en resize (útil si rotás el celu)
+      window.addEventListener("resize", () => {
+        // pequeño debounce
+        clearTimeout(window.__chartResizeT);
+        window.__chartResizeT = setTimeout(() => drawScoresChart(), 100);
+      });
+
+    })();
+  </script>
+</body>
+</html>
