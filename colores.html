@@ -526,6 +526,18 @@
         b = Math.min(0.35, Math.max(0.15, b));
         return Math.round(b * 100) / 100; // 2 decimales
       }
+
+      function speedBonusForRT(info, rt){
+        const thr = fastRTmsForDifficulty(info);
+        if(rt == null) return 0;
+
+        const base = speedBonusPointsForDifficulty(info);
+
+        if(rt < thr * 0.70) return Math.min(base * 2.0, 0.70);
+        if(rt < thr * 0.85) return Math.min(base * 1.5, 0.70);
+        if(rt < thr)        return base;
+        return 0;
+      }
       
       function expectedRoundsForDifficulty(info){
         // estimación simple de throughput en 90s:
@@ -989,8 +1001,8 @@
           }
           
           // Bonus por velocidad (solo si correcto y rt rápido)
-          if(rt != null && rt < fastRTmsForDifficulty(info)){
-            speedBonus = speedBonusPointsForDifficulty(info);
+          speedBonus = speedBonusForRT(info, rt);
+          if(speedBonus > 0){
             speedBonusAccum += speedBonus;
             roundScore += speedBonus;
           }
