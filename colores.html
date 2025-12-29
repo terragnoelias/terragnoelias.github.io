@@ -536,27 +536,25 @@
         return Math.round(r);
       }
       
+      function passOldForLevel(level){
+        // la curva exigente de antes
+        return 60 + 12*level;
+      }
+      
+      function hardnessFactor(level){
+        // Compensa bonus (racha/velocidad) y hace más exigente arriba sin romper abajo.
+        // 1.06 en lvl1, 1.165 en lvl8, tope 1.22
+        return Math.min(1.22, 1.05 + 0.015*level);
+      }
+      
       function passScoreForLevel(level){
         const info = getLevelInfo(level);
-        const base = basePointsForDifficulty(info);
+        const base = basePointsForDifficulty(info); // esquema C
 
-        // requerimiento de "habilidad": usamos una precisión objetivo exigente
-        // (en vez de obligar 140 rondas). Esto mantiene "difícil pero posible".
-        const targetAcc = 0.83; // exigente
+        // Port directo: mismo "net performance" pero en la nueva escala.
+        // Luego endurecer un poco por bonus.
+        const pass = passOldForLevel(level) * base * hardnessFactor(level);
 
-        const expectedRounds = expectedRoundsForDifficulty(info);
-
-        // puntaje esperado "bueno" sin depender demasiado del speed bonus:
-        // base*targetAcc - 0.5*base*(1-targetAcc)  => valor esperado por ronda
-        const expectedPerRound = base*targetAcc + (-0.5*base)*(1 - targetAcc);
-
-        // Pedimos ~85% de ese rendimiento esperado bueno.
-        let pass = expectedRounds * expectedPerRound * 0.85;
-
-        // sumamos un pequeño escalón para evitar pasar muy fácil en niveles bajos:
-        pass += 6 + level*1.5;
-
-        // Redondeo:
         return Math.round(pass);
       }
       
@@ -564,11 +562,16 @@
         const info = getLevelInfo(level);
         const o = info.optionsCount, c = info.colorsCount;
 
-        // base 78%, sube con dificultad
-        let a = 0.78 + 0.015*(o - 2) + 0.010*(c - 2);
+        // Base por dificultad
+        let a = 0.80 + 0.015*(o - 2) + 0.010*(c - 2);
 
-        // tope:
-        a = Math.min(0.88, Math.max(0.75, a));
+        // Un extra a partir de nivel 6 (para que no se suba "por volumen")
+        if(level >= 6){
+          a += 0.005 * (level - 5); // +0.5% por nivel desde 6
+        }
+
+        // Topes razonables
+        a = Math.min(0.90, Math.max(0.78, a));
         return a;
       }
 
