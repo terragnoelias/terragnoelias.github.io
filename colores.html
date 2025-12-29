@@ -328,7 +328,8 @@
         </div>
         <div class="pillrow" id="pillrow">
           <div class="pill">Duración: <b>90s</b></div>
-          <div class="pill">+1 correcto / -0.5 incorrecto</div>
+          <div class="pill" id="pillScore">Puntaje variable por dificultad</div>
+          <div class="pill" id="pillError">Error: −50% del acierto</div>
           <div class="pill" id="pillPass">Subís si ≥ <b id="pillPassScore">—</b> pts y precisión ≥ <b id="pillPassAcc">—</b>%</div>
         </div>
       </div>
@@ -495,21 +496,80 @@
         return { colorsCount: c, optionsCount: o };
       }
       
-      // ====== PROGRESSION FUNCTIONS ======
+      // ====== PROGRESSION FUNCTIONS (ESQUEMA C - BASADO EN DIFICULTAD) ======
+      const NEXT_DELAY_MS = 110;
+      
+      function basePointsForDifficulty(info){
+        const o = info.optionsCount;   // mínimo 2
+        const c = info.colorsCount;    // mínimo 2
+        let base = 1 + 0.12*(o - 2) + 0.08*(c - 2);
+        // tope para evitar explosión:
+        base = Math.min(2.2, Math.max(1.0, base));
+        return base; // float
+      }
+      
+      function fastRTmsForDifficulty(info){
+        // más opciones/colores => umbral un poco más generoso (más lento permitido)
+        // base: 900ms con dificultad baja, sube hasta ~1050ms en dificultad alta
+        const o = info.optionsCount;
+        const c = info.colorsCount;
+        let t = 900 + 35*(o - 2) + 25*(c - 2);
+        // tope:
+        t = Math.min(1100, Math.max(720, t));
+        return Math.round(t);
+      }
+      
+      function speedBonusPointsForDifficulty(info){
+        // entre 0.18 y 0.35 aprox
+        const o = info.optionsCount, c = info.colorsCount;
+        let b = 0.18 + 0.03*(o - 2) + 0.02*(c - 2);
+        b = Math.min(0.35, Math.max(0.15, b));
+        return Math.round(b * 100) / 100; // 2 decimales
+      }
+      
+      function expectedRoundsForDifficulty(info){
+        // estimación simple de throughput en 90s:
+        // con 2 opciones/2 colores podés llegar a ~120 rondas; a mayor dificultad baja.
+        const o = info.optionsCount, c = info.colorsCount;
+        let r = 120 - 10*(o - 2) - 6*(c - 2);
+        r = Math.min(120, Math.max(70, r));
+        return Math.round(r);
+      }
+      
       function passScoreForLevel(level){
-        return 60 + level * 12;
+        const info = getLevelInfo(level);
+        const base = basePointsForDifficulty(info);
+
+        // requerimiento de "habilidad": usamos una precisión objetivo exigente
+        // (en vez de obligar 140 rondas). Esto mantiene "difícil pero posible".
+        const targetAcc = 0.83; // exigente
+
+        const expectedRounds = expectedRoundsForDifficulty(info);
+
+        // puntaje esperado "bueno" sin depender demasiado del speed bonus:
+        // base*targetAcc - 0.5*base*(1-targetAcc)  => valor esperado por ronda
+        const expectedPerRound = base*targetAcc + (-0.5*base)*(1 - targetAcc);
+
+        // Pedimos ~85% de ese rendimiento esperado bueno.
+        let pass = expectedRounds * expectedPerRound * 0.85;
+
+        // sumamos un pequeño escalón para evitar pasar muy fácil en niveles bajos:
+        pass += 6 + level*1.5;
+
+        // Redondeo:
+        return Math.round(pass);
       }
+      
       function minAccuracyForLevel(level){
-        // 75% en nivel 1, sube 1% por nivel hasta max 85%
-        return Math.min(0.85, 0.75 + level * 0.01);
-      }
-      function fastRTms(level){
-        // 950ms en lvl1, baja 30ms por nivel, mínimo 700ms
-        return Math.max(700, 950 - level * 30);
-      }
-      function speedBonusPoints(level){
-        // entre 0.2 y 0.35 aprox
-        return Math.min(0.35, 0.20 + level * 0.015);
+        const info = getLevelInfo(level);
+        const o = info.optionsCount, c = info.colorsCount;
+
+        // base 78%, sube con dificultad
+        let a = 0.78 + 0.015*(o - 2) + 0.010*(c - 2);
+
+        // tope:
+        a = Math.min(0.88, Math.max(0.75, a));
+        return a;
       }
 
       // ====== UI ELEMENTS ======
@@ -550,6 +610,8 @@
       const pillPass = el("pillPass");
       const pillPassScore = el("pillPassScore");
       const pillPassAcc = el("pillPassAcc");
+      const pillScore = el("pillScore");
+      const pillError = el("pillError");
       const hintTop = el("hintTop");
       const hintBottom = el("hintBottom");
       const stageHint = el("stageHint");
@@ -738,11 +800,13 @@
         }
 
         const cur = appState.currentLevel;
+        const infoCur = getLevelInfo(cur);
         const lines = [];
-        lines.push(`Nivel <b>${cur}</b>: ${getLevelInfo(cur).colorsCount} colores, ${getLevelInfo(cur).optionsCount} opciones`);
+        lines.push(`Nivel <b>${cur}</b>: ${infoCur.colorsCount} colores, ${infoCur.optionsCount} opciones`);
+        lines.push(`Puntaje base por acierto: <b>${Math.round(basePointsForDifficulty(infoCur) * 100) / 100}</b> pts`);
         lines.push(`Puntaje para subir: <b>${passScoreForLevel(cur)}</b> pts`);
         lines.push(`Precisión mínima: <b>${Math.round(minAccuracyForLevel(cur) * 100)}%</b>`);
-        lines.push(`RT rápido: <b><${fastRTms(cur)}ms</b>`);
+        lines.push(`RT rápido: <b><${fastRTmsForDifficulty(infoCur)}ms</b>`);
         for(let lv=cur+1; lv<=cur+4; lv++){
           const info = getLevelInfo(lv);
           lines.push(`Nivel <b>${lv}</b>: ${info.colorsCount} colores, ${info.optionsCount} opciones`);
@@ -775,8 +839,13 @@
       
       function updatePills(){
         const level = appState.currentLevel;
+        const info = getLevelInfo(level);
+        const base = basePointsForDifficulty(info);
         const pass = passScoreForLevel(level);
         const minAcc = minAccuracyForLevel(level);
+        
+        pillScore.textContent = `Puntaje: ${Math.round(base * 100) / 100} pts (más opciones/colores = más puntos)`;
+        pillError.textContent = `Error: −${Math.round(base * 0.5 * 100) / 100} pts`;
         pillPassScore.textContent = pass;
         pillPassAcc.textContent = Math.round(minAcc * 100);
       }
@@ -898,11 +967,15 @@
           rtCount += 1;
         }
 
+        // Calcular dificultad actual
+        const info = getLevelInfo(appState.currentLevel);
+        const base = basePointsForDifficulty(info);
+
         let roundScore = 0;
         let speedBonus = 0;
         
         if(ok){
-          roundScore = SCORE_CORRECT;
+          roundScore = base;
           correct += 1;
           streak += 1;
           
@@ -913,8 +986,8 @@
           }
           
           // Bonus por velocidad (solo si correcto y rt rápido)
-          if(rt != null && rt < fastRTms(appState.currentLevel)){
-            speedBonus = speedBonusPoints(appState.currentLevel);
+          if(rt != null && rt < fastRTmsForDifficulty(info)){
+            speedBonus = speedBonusPointsForDifficulty(info);
             speedBonusAccum += speedBonus;
             roundScore += speedBonus;
           }
@@ -922,7 +995,7 @@
           btn.style.borderColor = "rgba(53,208,127,.55)";
           btn.style.background = "rgba(53,208,127,.12)";
         }else{
-          roundScore = SCORE_WRONG;
+          roundScore = -0.5 * base;
           wrong += 1;
           streak = 0; // reset racha
           btn.style.borderColor = "rgba(255,77,109,.55)";
@@ -941,7 +1014,8 @@
           wrong,
           ok,
           rt: rt != null ? Math.round(rt) : null,
-          speedBonus: speedBonus > 0 ? Math.round(speedBonus * 100) / 100 : null
+          speedBonus: speedBonus > 0 ? Math.round(speedBonus * 100) / 100 : null,
+          base: Math.round(base * 100) / 100
         });
 
         stage.classList.remove("flash");
@@ -952,7 +1026,7 @@
 
         setTimeout(() => {
           if(running) newRound();
-        }, 10);
+        }, NEXT_DELAY_MS);
       }
       
       function onAnswerDual(chosenName, btn){
@@ -1011,10 +1085,11 @@
           if(correctCount === 2){
             roundScore = 2.0;
             // Bonus velocidad dual (solo si ambos correctos)
+            const info = getLevelInfo(appState.currentLevel);
             const avgRTdual = (dualRTs[0] + dualRTs[1]) / 2;
-            const fastRTdual = fastRTms(appState.currentLevel) + 50;
+            const fastRTdual = fastRTmsForDifficulty(info) + 50;
             if(avgRTdual < fastRTdual){
-              speedBonus = speedBonusPoints(appState.currentLevel);
+              speedBonus = speedBonusPointsForDifficulty(info);
               speedBonusAccum += speedBonus;
               roundScore += speedBonus;
             }
@@ -1142,9 +1217,13 @@
           speedBonusAccum = 0;
         }
 
+        const lv = appState.currentLevel;
+        const pass = passScoreForLevel(lv);
+        const minAcc = minAccuracyForLevel(lv);
+
         const session = {
           at: new Date().toISOString(),
-          level: appState.currentLevel,
+          level: lv,
           mode: appState.mode,
           score: Math.round(score * 10) / 10,
           correct,
@@ -1152,9 +1231,9 @@
           accuracy: acc,
           avgRTms: avgRT,
           rounds: sessionRounds.slice(),
-          passScore: passScoreForLevel(appState.currentLevel),
-          minAcc: minAccuracyForLevel(appState.currentLevel),
-          speedBonusAccum: Math.round(speedBonusAccum * 10) / 10,
+          passScore: pass,
+          minAcc: minAcc,
+          speedBonusAccumFinal: Math.round(speedBonusAccum * 10) / 10,
           streakMax: streak
         };
 
@@ -1171,14 +1250,14 @@
         });
         if(appState.sessions.length > 400) appState.sessions = appState.sessions.slice(-400);
 
-        const lv = appState.currentLevel;
-        const prevBest = appState.bestByLevel[lv];
+        const currentLv = appState.currentLevel;
+        const prevBest = appState.bestByLevel[currentLv];
         if(prevBest == null || score > prevBest){
-          appState.bestByLevel[lv] = score;
+          appState.bestByLevel[currentLv] = score;
         }
 
         // Desbloquear modo dual
-        if(!manual && !appState.dualUnlocked && lv >= 9 && acc != null && acc >= 85 && avgRT != null && avgRT <= 800){
+        if(!manual && !appState.dualUnlocked && currentLv >= 9 && acc != null && acc >= 85 && avgRT != null && avgRT <= 800){
           appState.dualUnlocked = true;
           showToast("¡Desbloqueaste Modo Dual!");
           updateDualButton();
@@ -1186,14 +1265,13 @@
 
         // Subir nivel (doble condición)
         if(!manual){
-          const pass = passScoreForLevel(lv);
-          const minAcc = minAccuracyForLevel(lv) * 100;
-          if(score >= pass && acc != null && acc >= minAcc){
+          const minAccPercent = minAcc * 100;
+          if(score >= pass && acc != null && acc >= minAccPercent){
             appState.currentLevel += 1;
             appState.maxLevel = Math.max(appState.maxLevel, appState.currentLevel);
             showToast(`¡Subiste a nivel ${appState.currentLevel}!`);
           }else{
-            showToast(`Fin: ${Math.round(score * 10) / 10} pts (nivel ${lv})`);
+            showToast(`Fin: ${Math.round(score * 10) / 10} pts (nivel ${currentLv})`);
           }
         }
 
