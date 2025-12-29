@@ -408,6 +408,11 @@
           <div class="row"><span>Precisión</span><b id="sLastAcc">—</b></div>
           <div class="row"><span>RT promedio</span><b id="sLastRT">—</b></div>
           <div class="row"><span>Rondas guardadas</span><b id="sLastRounds">—</b></div>
+          <div class="row"><span>Pts por velocidad</span><b id="sLastSpeedBonus">—</b></div>
+          <div class="row"><span>Pts por racha</span><b id="sLastStreakBonus">—</b></div>
+          <div class="row"><span>Resp. rápidas (<70%)</span><b id="sLastSpeed70">—</b></div>
+          <div class="row"><span>Resp. rápidas (70-85%)</span><b id="sLastSpeed85">—</b></div>
+          <div class="row"><span>Resp. rápidas (85-100%)</span><b id="sLastSpeed100">—</b></div>
         </div>
 
         <div class="panel">
@@ -616,6 +621,11 @@
       const sLastAcc = el("sLastAcc");
       const sLastRT = el("sLastRT");
       const sLastRounds = el("sLastRounds");
+      const sLastSpeedBonus = el("sLastSpeedBonus");
+      const sLastStreakBonus = el("sLastStreakBonus");
+      const sLastSpeed70 = el("sLastSpeed70");
+      const sLastSpeed85 = el("sLastSpeed85");
+      const sLastSpeed100 = el("sLastSpeed100");
 
       const bestByLevel = el("bestByLevel");
       const lvlExplain = el("lvlExplain");
@@ -658,6 +668,13 @@
       let speedBonusAccum = 0; // acumulador de speed bonus para anticheese
       let totalSelections = 0; // total de selecciones (para dual mode)
       let totalCorrectSelections = 0; // total de selecciones correctas (para dual mode)
+      
+      // Tracking de estadísticas detalladas
+      let speedBonusPointsTotal = 0; // puntos totales por speed bonus
+      let streakBonusPointsTotal = 0; // puntos totales por racha
+      let speedBonusCount70 = 0; // respuestas < 70% del umbral
+      let speedBonusCount85 = 0; // respuestas < 85% del umbral (pero >= 70%)
+      let speedBonusCount100 = 0; // respuestas < 100% del umbral (pero >= 85%)
       
       // Dual mode state
       let dualTargets = []; // [colorA, colorB] en modo dual
@@ -793,6 +810,11 @@
           sLastAcc.textContent = "—";
           sLastRT.textContent = "—";
           sLastRounds.textContent = "—";
+          sLastSpeedBonus.textContent = "—";
+          sLastStreakBonus.textContent = "—";
+          sLastSpeed70.textContent = "—";
+          sLastSpeed85.textContent = "—";
+          sLastSpeed100.textContent = "—";
         }else{
           sLastScore.textContent = ls.score != null ? Math.round(ls.score * 10) / 10 : "—";
           sLastCE.textContent = `${ls.correct || 0} / ${ls.wrong || 0}`;
@@ -802,6 +824,17 @@
           sLastAcc.textContent = fmtPct(ls.accuracy);
           sLastRT.textContent = (ls.avgRTms != null) ? `${Math.round(ls.avgRTms)} ms` : "—";
           sLastRounds.textContent = Array.isArray(ls.rounds) ? String(ls.rounds.length) : "—";
+          sLastSpeedBonus.textContent = (ls.speedBonusPoints != null) ? `${Math.round(ls.speedBonusPoints * 10) / 10}` : "—";
+          sLastStreakBonus.textContent = (ls.streakBonusPoints != null) ? String(ls.streakBonusPoints) : "—";
+          if(ls.speedBonusCounts){
+            sLastSpeed70.textContent = String(ls.speedBonusCounts.under70 || 0);
+            sLastSpeed85.textContent = String(ls.speedBonusCounts.under85 || 0);
+            sLastSpeed100.textContent = String(ls.speedBonusCounts.under100 || 0);
+          }else{
+            sLastSpeed70.textContent = "—";
+            sLastSpeed85.textContent = "—";
+            sLastSpeed100.textContent = "—";
+          }
         }
 
         const keys = Object.keys(appState.bestByLevel).map(k=>parseInt(k,10)).sort((a,b)=>a-b);
@@ -996,7 +1029,9 @@
           
           // Bonus por racha (cada 5 aciertos seguidos)
           if(streak % 5 === 0){
-            roundScore += 2;
+            const streakBonus = 2;
+            roundScore += streakBonus;
+            streakBonusPointsTotal += streakBonus;
             showToast(`¡Racha de ${streak}! +2 puntos`);
           }
           
@@ -1004,7 +1039,20 @@
           speedBonus = speedBonusForRT(info, rt);
           if(speedBonus > 0){
             speedBonusAccum += speedBonus;
+            speedBonusPointsTotal += speedBonus;
             roundScore += speedBonus;
+            
+            // Contar por umbral
+            const thr = fastRTmsForDifficulty(info);
+            if(rt != null){
+              if(rt < thr * 0.70){
+                speedBonusCount70 += 1;
+              }else if(rt < thr * 0.85){
+                speedBonusCount85 += 1;
+              }else if(rt < thr){
+                speedBonusCount100 += 1;
+              }
+            }
           }
           
           btn.style.borderColor = "rgba(53,208,127,.55)";
@@ -1189,6 +1237,11 @@
         speedBonusAccum = 0;
         totalSelections = 0;
         totalCorrectSelections = 0;
+        speedBonusPointsTotal = 0;
+        streakBonusPointsTotal = 0;
+        speedBonusCount70 = 0;
+        speedBonusCount85 = 0;
+        speedBonusCount100 = 0;
         dualTargets = [];
         dualChosen = [];
         dualRTs = [];
@@ -1249,7 +1302,14 @@
           passScore: pass,
           minAcc: minAcc,
           speedBonusAccumFinal: Math.round(speedBonusAccum * 10) / 10,
-          streakMax: streak
+          streakMax: streak,
+          speedBonusPoints: Math.round(speedBonusPointsTotal * 100) / 100,
+          streakBonusPoints: streakBonusPointsTotal,
+          speedBonusCounts: {
+            under70: speedBonusCount70,
+            under85: speedBonusCount85,
+            under100: speedBonusCount100
+          }
         };
 
         appState.lastSession = session;
