@@ -538,7 +538,7 @@
 
         const base = speedBonusPointsForDifficulty(info);
 
-        if(rt < thr * 0.70) return Math.min(base * 2.0, 0.70);
+        if(rt < thr * 0.70) return Math.min(base * 2.0 + info.level / 20, 1);
         if(rt < thr * 0.85) return Math.min(base * 1.5, 0.70);
         if(rt < thr)        return base;
         return 0;
