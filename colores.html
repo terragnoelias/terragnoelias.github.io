@@ -532,13 +532,14 @@
         return Math.round(b * 100) / 100; // 2 decimales
       }
 
-      function speedBonusForRT(info, rt){
+      function speedBonusForRT(info, rt, level){
         const thr = fastRTmsForDifficulty(info);
         if(rt == null) return 0;
 
         const base = speedBonusPointsForDifficulty(info);
+        const multiplier = 2.0 + (level / 20);
 
-        if(rt < thr * 0.70) return Math.min(base * 2.0 + info.level / 20, 1);
+        if(rt < thr * 0.70) return Math.min(base * multiplier, 1);
         if(rt < thr * 0.85) return Math.min(base * 1.5, 0.70);
         if(rt < thr)        return base;
         return 0;
@@ -1036,7 +1037,7 @@
           }
           
           // Bonus por velocidad (solo si correcto y rt rápido)
-          speedBonus = speedBonusForRT(info, rt);
+          speedBonus = speedBonusForRT(info, rt, appState.currentLevel);
           if(speedBonus > 0){
             speedBonusAccum += speedBonus;
             speedBonusPointsTotal += speedBonus;
