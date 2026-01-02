@@ -551,6 +551,7 @@
           <div class="row"><span>Correct / Wrong / Miss</span><b id="sLastCEM">—</b></div>
           <div class="row"><span>Precisión</span><b id="sLastAcc">—</b></div>
           <div class="row"><span>RT prom</span><b id="sLastRT">—</b></div>
+          <div class="row"><span>Nivel</span><b id="sLastLevel">—</b></div>
           <div class="row"><span>Config</span><b id="sLastCfg">—</b></div>
         </div>
 
@@ -1205,6 +1206,7 @@
 
   // ========= Session control =========
   function startSession(){
+    console.log("startSession called, running:", running);
     if(running) return;
 
     const li = levelInfo(appState.currentLevel);
@@ -1231,6 +1233,18 @@
     if(gameCard) gameCard.classList.add("gameMode");
 
     // Contador de 3 segundos
+    if(!countdownOverlay || !countdownNumber){
+      console.error("Countdown elements not found");
+      // Fallback: iniciar directamente
+      running = true;
+      setRunningUI(true);
+      nextDigit();
+      clearInterval(streamHandle);
+      streamHandle = setInterval(nextDigit, li.interval);
+      renderHUD();
+      return;
+    }
+
     let count = 3;
     countdownNumber.textContent = String(count);
     countdownOverlay.classList.add("show");
@@ -1358,10 +1372,14 @@
   }
 
   // ========= INIT =========
-  btnStart.addEventListener("click", startSession);
-  btnStop.addEventListener("click", stopSession);
-  btnRestart.addEventListener("click", restartSession);
-  btnResetStats.addEventListener("click", resetStats);
+  if(!btnStart){
+    console.error("btnStart not found!");
+  }else{
+    btnStart.addEventListener("click", startSession);
+  }
+  if(btnStop) btnStop.addEventListener("click", stopSession);
+  if(btnRestart) btnRestart.addEventListener("click", restartSession);
+  if(btnResetStats) btnResetStats.addEventListener("click", resetStats);
 
   renderStatsPanel();
   renderHUD();
