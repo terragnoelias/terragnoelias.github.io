@@ -401,7 +401,7 @@
           <div class="stat"><div class="k">PUNTAJE</div><div class="v" id="vScore">0</div></div>
           <div class="stat"><div class="k">PROGRESO</div><div class="v" id="vProg">0/60</div></div>
           <div class="stat"><div class="k">ACIERTO</div><div class="v" id="vAcc">—</div></div>
-          <div class="stat"><div class="k">RT PROM</div><div class="v" id="vRT">—</div></div>
+          <div class="stat"><div class="k">RACHA</div><div class="v" id="vStreak">0</div></div>
         </div>
 
         <div class="stage" id="stage">
@@ -571,9 +571,7 @@
       speedStage: speedStage(level)
     };
   }
-  function getScoreMultiplier(level){
-    return 1 + (level / 10);
-  }
+  // getScoreMultiplier ya no se usa (scoring nuevo)
 
   // ========= UI =========
   const el = (id) => document.getElementById(id);
@@ -591,6 +589,7 @@
   const vProg = el("vProg");
   const vAcc = el("vAcc");
   const vRT = el("vRT");
+  const vStreak = el("vStreak");
 
   const stage = el("stage");
   const digitEl = el("digit");
@@ -872,6 +871,8 @@
 
   let trialsDone = 0;
   let trialsTarget = BASE_TRIALS;
+  
+  let streakCorrect = 0; // racha de aciertos seguidos
 
   // ========= Helpers =========
   function randInt(n){ return Math.floor(Math.random()*n); }
@@ -964,8 +965,7 @@
     const acc = total ? (correct/total)*100 : NaN;
     vAcc.textContent = total ? fmtPct(acc) : "—";
 
-    const avgRT = rtCount ? (rtSum/rtCount) : null;
-    vRT.textContent = avgRT ? `${Math.round(avgRT)} ms` : "—";
+    vStreak.textContent = streakCorrect;
 
     vScore.classList.toggle("good", score > 0);
     vScore.classList.toggle("bad", score < 0);
@@ -990,8 +990,8 @@
     // Si estaba pendiente el trial anterior, se convierte en miss y consume 1 trial
     if(pendingAnswer){
       miss += 1;
-      const multiplier = getScoreMultiplier(appState.currentLevel);
-      score += Math.round(-1 * multiplier);
+      score += -8; // penalización por miss
+      streakCorrect = 0; // reset racha
       pendingAnswer = false;
       lockButtons();
       trialsDone += 1;
@@ -1033,21 +1033,59 @@
     const ok = val === correctSum;
     pendingAnswer = false;
 
+    let rt = null;
     if(lastTrialStartAt != null){
-      const rt = performance.now() - lastTrialStartAt;
+      rt = performance.now() - lastTrialStartAt;
       rtSum += rt;
       rtCount += 1;
     }
 
-    const multiplier = getScoreMultiplier(appState.currentLevel);
+    const li = levelInfo(appState.currentLevel);
+    let roundScore = 0;
+    let speedBonus = 0;
+    let streakBonus = 0;
+
     if(ok){
       correct += 1;
-      score += Math.round(1 * multiplier);
+      roundScore = 10; // base por acierto
+      
+      // Bonus por velocidad (solo en aciertos)
+      if(rt != null && li.interval > 0){
+        const rtRatio = rt / li.interval;
+        if(rtRatio < 0.50){
+          speedBonus = 6;
+        }else if(rtRatio < 0.75){
+          speedBonus = 4;
+        }else if(rtRatio <= 1.00){
+          speedBonus = 2;
+        }
+        // si rtRatio > 1.00 => speedBonus = 0
+      }
+      
+      // Bonus por racha
+      streakCorrect += 1;
+      if(streakCorrect === 5){
+        streakBonus = 5;
+        showToast(`¡Racha de 5! +5 puntos`);
+      }else if(streakCorrect === 10){
+        streakBonus = 10;
+        showToast(`¡Racha de 10! +10 puntos`);
+      }else if(streakCorrect === 20){
+        streakBonus = 20;
+        showToast(`¡Racha de 20! +20 puntos`);
+      }
+      
+      roundScore += speedBonus + streakBonus;
+      score += roundScore;
+      
       btn.style.borderColor = "rgba(53,208,127,.55)";
       btn.style.background = "rgba(53,208,127,.12)";
     }else{
       wrong += 1;
-      score += Math.round(-1 * multiplier);
+      roundScore = -5; // penalización por wrong
+      streakCorrect = 0; // reset racha
+      score += roundScore;
+      
       btn.style.borderColor = "rgba(255,77,109,.55)";
       btn.style.background = "rgba(255,77,109,.12)";
       showToast(`Incorrecto → era ${correctSum}`);
@@ -1082,6 +1120,7 @@
     score = 0;
     correct = 0; wrong = 0; miss = 0;
     rtSum = 0; rtCount = 0;
+    streakCorrect = 0;
 
     trialsDone = 0;
 
@@ -1161,11 +1200,16 @@
       appState.bestByLevel[appState.currentLevel] = thisAccStr;
     }
 
-    // Level up: SOLO si completó la cantidad y fue 100%
-    if(!manual && total === trialsTarget && correct === total){
-      appState.currentLevel += 1;
-      appState.maxLevel = Math.max(appState.maxLevel, appState.currentLevel);
-      showToast(`¡100%! Subiste a nivel ${appState.currentLevel} (+1 cantidad)`);
+    // Level up: SOLO si completó la cantidad, accuracy >= 95%, y miss == 0
+    if(!manual && total === trialsTarget){
+      const accuracyValue = acc != null ? acc / 100 : 0;
+      if(accuracyValue >= 0.95 && miss === 0){
+        appState.currentLevel += 1;
+        appState.maxLevel = Math.max(appState.maxLevel, appState.currentLevel);
+        showToast(`¡${thisAccStr}! Subiste a nivel ${appState.currentLevel}`);
+      }else{
+        showToast(`Fin: ${thisAccStr} (nivel ${appState.currentLevel})`);
+      }
     }else if(!manual){
       showToast(`Fin: ${thisAccStr} (nivel ${appState.currentLevel})`);
     }
