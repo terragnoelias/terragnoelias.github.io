@@ -177,6 +177,8 @@
       user-select:none;
       transition: opacity .08s ease;
       font-family: var(--mono);
+      min-width: 120px; /* asegura ancho mínimo para evitar cambios de layout */
+      text-align: center;
     }
     .digit.hidden{ opacity: 0; }
 
@@ -332,6 +334,7 @@
         width: min(280px, 75%);
         height: 100px;
         font-size: 64px;
+        min-width: 100px; /* asegura ancho mínimo en mobile */
       }
       .trail { margin-top: -4px; gap: 6px; }
       .chip { padding: 4px 8px; font-size: 11px; }
@@ -912,8 +915,27 @@
   }
 
   function showDigit(value, visibleMs){
+    // Guardar posición de scroll en mobile antes de actualizar
+    const card = document.querySelector(".card.game");
+    let scrollTop = null;
+    if(card && window.innerWidth <= 880){
+      scrollTop = card.scrollTop;
+    }
+    
     digitEl.textContent = String(value);
     digitEl.classList.remove("hidden");
+    
+    // Restaurar posición de scroll después de un breve delay para que el layout se estabilice
+    if(scrollTop != null && card){
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          if(card.scrollTop !== scrollTop){
+            card.scrollTop = scrollTop;
+          }
+        });
+      });
+    }
+    
     setTimeout(() => digitEl.classList.add("hidden"), Math.max(0, visibleMs));
   }
 
