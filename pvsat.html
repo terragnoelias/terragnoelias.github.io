@@ -255,6 +255,74 @@
     .flash{ animation: flash .16s ease-out; }
     @keyframes flash{ from{ transform: scale(1.01); } to{ transform: scale(1.0); } }
 
+    /* ====== COUNTDOWN OVERLAY ====== */
+    .countdownOverlay{
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(11,18,32,.95);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+      backdrop-filter: blur(8px);
+    }
+    .countdownOverlay.show{ display: flex; }
+    .countdownNumber{
+      font-size: 120px;
+      font-weight: 900;
+      font-family: var(--mono);
+      color: var(--text);
+      text-shadow: 0 0 40px rgba(120,160,255,.6);
+      animation: countdownPulse .8s ease-out;
+    }
+    @keyframes countdownPulse{
+      0%{ transform: scale(0.5); opacity: 0; }
+      50%{ transform: scale(1.1); opacity: 1; }
+      100%{ transform: scale(1); opacity: 0.8; }
+    }
+
+    /* ====== GAME MODE (oculta elementos innecesarios) ====== */
+    .card.gameMode .hd{ display: none; }
+    .card.gameMode .controls{ display: none; }
+    .card.gameMode .status{ display: none; }
+    .card.gameMode .hint{ display: none; }
+    .card.gameMode .trail{ display: none; }
+    .card.gameMode .small{ display: none; }
+    .card.gameMode .stage{
+      padding: 40px 18px;
+      min-height: unset;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      gap: 40px;
+    }
+    .card.gameMode .digitBox{ padding: 0; }
+    .card.gameMode .digit{
+      width: min(400px, 90%);
+      height: 180px;
+      font-size: 120px;
+    }
+    .card.gameMode .options{
+      width: 100%;
+      max-width: 500px;
+    }
+    @media (max-width: 880px){
+      .card.gameMode .stage{
+        padding: 30px 12px;
+        gap: 30px;
+      }
+      .card.gameMode .digit{
+        width: min(300px, 85%);
+        height: 140px;
+        font-size: 90px;
+      }
+      .countdownNumber{ font-size: 80px; }
+    }
+
     .side{ padding:18px; display:grid; gap:14px; }
     .panel{
       padding:14px 14px;
@@ -382,7 +450,7 @@
         </div>
         <div class="pillrow">
           <div class="pill">Inicio: <b>60</b> respuestas</div>
-          <div class="pill">Subís solo con <b>100%</b> (sin err ni miss)</div>
+          <div class="pill">Subís con <b>≥95%</b> precisión y <b>0 misses</b></div>
         </div>
       </div>
 
@@ -428,6 +496,7 @@
             <br/>• al subir primero: <b>más rápido + menos visibilidad</b> (2 opciones)
             <br/>• al subir siguiente: <b>3 opciones</b> (misma velocidad/vis)
             <br/>y se repite. Además, la <b>cantidad</b> empieza en 60 y sube +1 por nivel.
+            <br/><b>Subida:</b> necesitás ≥95% precisión y 0 misses para subir de nivel.
           </div>
         </div>
       </div>
@@ -499,6 +568,11 @@
   </div>
 
   <div class="toast" id="toast"></div>
+
+  <!-- Countdown overlay -->
+  <div class="countdownOverlay" id="countdownOverlay">
+    <div class="countdownNumber" id="countdownNumber">3</div>
+  </div>
 
   <!-- Botón mobile -->
   <button class="mobile-toggle" id="btnToggleView">📊 Stats</button>
@@ -601,6 +675,9 @@
   const chipCur = el("chipCur");
   const chipCfg = el("chipCfg");
   const toast = el("toast");
+  const countdownOverlay = el("countdownOverlay");
+  const countdownNumber = el("countdownNumber");
+  const gameCard = document.querySelector(".card.game");
 
   const sCurLevel = el("sCurLevel");
   const sMaxLevel = el("sMaxLevel");
@@ -609,6 +686,7 @@
   const sLastCEM = el("sLastCEM");
   const sLastAcc = el("sLastAcc");
   const sLastRT = el("sLastRT");
+  const sLastLevel = el("sLastLevel");
   const sLastCfg = el("sLastCfg");
   const bestByLevelEl = el("bestByLevel");
   const lvlExplainEl = el("lvlExplain");
@@ -649,12 +727,14 @@
       sLastCEM.textContent = "—";
       sLastAcc.textContent = "—";
       sLastRT.textContent = "—";
+      sLastLevel.textContent = "—";
       sLastCfg.textContent = "—";
     }else{
       sLastScore.textContent = ls.score != null ? ls.score : "—";
       sLastCEM.textContent = `${ls.correct} / ${ls.wrong} / ${ls.miss}`;
       sLastAcc.textContent = fmtPct(ls.accuracy);
       sLastRT.textContent = (ls.avgRTms != null) ? `${Math.round(ls.avgRTms)} ms` : "—";
+      sLastLevel.textContent = ls.level != null ? ls.level : "—";
       sLastCfg.textContent = ls.cfg;
     }
 
@@ -1127,9 +1207,6 @@
   function startSession(){
     if(running) return;
 
-    running = true;
-    setRunningUI(true);
-
     const li = levelInfo(appState.currentLevel);
     trialsTarget = li.trials;
 
@@ -1150,14 +1227,40 @@
     saveState();
     renderStatsPanel();
 
-    // Primer dígito inmediato
-    nextDigit();
+    // Activar modo juego (oculta elementos innecesarios)
+    if(gameCard) gameCard.classList.add("gameMode");
 
-    // Flujo por interval del nivel
-    clearInterval(streamHandle);
-    streamHandle = setInterval(nextDigit, li.interval);
+    // Contador de 3 segundos
+    let count = 3;
+    countdownNumber.textContent = String(count);
+    countdownOverlay.classList.add("show");
 
-    renderHUD();
+    function countdownTick(){
+      count--;
+      if(count > 0){
+        countdownNumber.textContent = String(count);
+        setTimeout(countdownTick, 1000);
+      }else{
+        countdownNumber.textContent = "¡";
+        setTimeout(() => {
+          countdownOverlay.classList.remove("show");
+          // Iniciar juego
+          running = true;
+          setRunningUI(true);
+
+          // Primer dígito inmediato
+          nextDigit();
+
+          // Flujo por interval del nivel
+          clearInterval(streamHandle);
+          streamHandle = setInterval(nextDigit, li.interval);
+
+          renderHUD();
+        }, 500);
+      }
+    }
+
+    setTimeout(countdownTick, 1000);
   }
 
   function stopSession(){
@@ -1170,13 +1273,16 @@
   }
 
   function endSession(manual){
-    if(!running) return;
+    if(!running && !manual) return;
 
     running = false;
     setRunningUI(false);
 
     clearInterval(streamHandle);
     streamHandle = null;
+
+    // Desactivar modo juego (restaurar vista normal)
+    if(gameCard) gameCard.classList.remove("gameMode");
 
     // Si queda un trial pendiente al finalizar manualmente, NO lo contamos como miss automáticamente.
     // Si querés que cuente, descomentá:
@@ -1228,12 +1334,13 @@
       if(accuracyValue >= 0.95 && miss === 0){
         appState.currentLevel += 1;
         appState.maxLevel = Math.max(appState.maxLevel, appState.currentLevel);
-        showToast(`¡${thisAccStr}! Subiste a nivel ${appState.currentLevel}`);
+        showToast(`¡${thisAccStr} precisión! Subiste a nivel ${appState.currentLevel} (sin misses)`);
       }else{
-        showToast(`Fin: ${thisAccStr} (nivel ${appState.currentLevel})`);
+        const reason = miss > 0 ? ` (${miss} miss${miss > 1 ? 'es' : ''})` : ` (${thisAccStr} < 95%)`;
+        showToast(`Fin: ${thisAccStr} precisión${reason} - Nivel ${appState.currentLevel}`);
       }
     }else if(!manual){
-      showToast(`Fin: ${thisAccStr} (nivel ${appState.currentLevel})`);
+      showToast(`Fin: ${thisAccStr} precisión - Nivel ${appState.currentLevel}`);
     }
 
     saveState();
