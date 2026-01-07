@@ -1,0 +1,1421 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>N-Back Self-Paced Trainer</title>
+  <style>
+    :root{
+      --bg0:#0b1220;
+      --bg1:#0f1b33;
+      --card: rgba(255,255,255,.06);
+      --card2: rgba(255,255,255,.09);
+      --text:#e9eefc;
+      --muted: rgba(233,238,252,.7);
+      --good:#35d07f;
+      --bad:#ff4d6d;
+      --warn:#ffd166;
+      --shadow: 0 18px 40px rgba(0,0,0,.35);
+      --ring: 0 0 0 3px rgba(120,160,255,.28);
+      --radius: 18px;
+      --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+      --sans: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, "Helvetica Neue", Arial, "Noto Sans", "Liberation Sans", sans-serif;
+    }
+    *{box-sizing:border-box}
+    body{
+      margin:0;
+      font-family: var(--sans);
+      color: var(--text);
+      background:
+        radial-gradient(1200px 800px at 15% 10%, rgba(80,130,255,.35), transparent 60%),
+        radial-gradient(900px 700px at 85% 30%, rgba(255,120,170,.25), transparent 55%),
+        radial-gradient(900px 900px at 50% 100%, rgba(60,240,190,.18), transparent 55%),
+        linear-gradient(180deg, var(--bg0), var(--bg1));
+      min-height:100vh;
+      display:flex;
+      justify-content:center;
+      padding:28px 16px;
+    }
+    .wrap{
+      width:min(980px, 100%);
+      display:grid;
+      grid-template-columns: 1.2fr .8fr;
+      gap:18px;
+    }
+    @media (max-width: 880px){ .wrap{grid-template-columns: 1fr; } }
+    .card{
+      background: var(--card);
+      border:1px solid rgba(255,255,255,.09);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(10px);
+      overflow:hidden;
+    }
+    .hd{
+      padding:16px 18px;
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:12px;
+      border-bottom:1px solid rgba(255,255,255,.08);
+      background: linear-gradient(180deg, rgba(255,255,255,.06), transparent);
+    }
+    .title{ display:flex; flex-direction:column; gap:2px; }
+    .title h1{ margin:0; font-size:16px; letter-spacing:.2px; font-weight:700; }
+    .title .sub{ font-size:12px; color: var(--muted); }
+    .pillrow{display:flex; flex-wrap:wrap; gap:8px; align-items:center; justify-content:flex-end;}
+    .pill{
+      padding:8px 10px;
+      border-radius:999px;
+      background: var(--card2);
+      border:1px solid rgba(255,255,255,.10);
+      font-family: var(--mono);
+      font-size:12px;
+      color: var(--text);
+      white-space:nowrap;
+    }
+    .pill b{font-weight:900}
+
+    .main{ padding:18px; display:grid; gap:14px; }
+
+    .controls{ display:flex; gap:10px; flex-wrap:wrap; justify-content:space-between; align-items:center; }
+    .btnrow{display:flex; gap:10px; flex-wrap:wrap;}
+    .btn{
+      cursor:pointer;
+      padding:10px 12px;
+      border-radius: 12px;
+      border:1px solid rgba(255,255,255,.12);
+      background: rgba(255,255,255,.07);
+      color: var(--text);
+      font-weight:700;
+      font-size: 13px;
+      transition: background .12s ease, transform .06s ease;
+    }
+    .btn:hover{ background: rgba(255,255,255,.10); transform: translateY(-1px); }
+    .btn:active{ transform: translateY(1px); }
+    .btn.primary{
+      background: linear-gradient(180deg, rgba(120,160,255,.35), rgba(120,160,255,.15));
+      border-color: rgba(120,160,255,.55);
+    }
+    .btn.danger{
+      background: linear-gradient(180deg, rgba(255,77,109,.22), rgba(255,77,109,.10));
+      border-color: rgba(255,77,109,.45);
+    }
+
+    .badge{
+      display:inline-flex;
+      align-items:center;
+      gap:8px;
+      padding:8px 10px;
+      border-radius: 999px;
+      border:1px solid rgba(255,255,255,.10);
+      background: rgba(255,255,255,.06);
+      font-family: var(--mono);
+      font-size: 12px;
+      color: var(--muted);
+    }
+    .dot{
+      width:10px; height:10px; border-radius:999px;
+      background: rgba(255,255,255,.2);
+      box-shadow: 0 0 0 3px rgba(255,255,255,.06);
+    }
+    .dot.on{ background: var(--good); box-shadow: 0 0 0 3px rgba(53,208,127,.18); }
+
+    .status{
+      display:grid;
+      grid-template-columns: repeat(6, minmax(0,1fr));
+      gap:10px;
+    }
+    @media (max-width: 520px){ .status{grid-template-columns: repeat(2, minmax(0,1fr));} }
+    .stat{
+      padding:10px 12px;
+      border-radius: 14px;
+      background: rgba(255,255,255,.05);
+      border:1px solid rgba(255,255,255,.08);
+      display:flex;
+      flex-direction:column;
+      gap:4px;
+    }
+    .stat .k{font-size:11px; color: var(--muted); font-family: var(--mono);}
+    .stat .v{font-size:18px; font-weight:900; font-family: var(--mono);}
+    .v.good{color: var(--good);}
+    .v.bad{color: var(--bad);}
+    .v.warn{color: var(--warn);}
+
+    .stage{
+      background: rgba(255,255,255,.04);
+      border:1px solid rgba(255,255,255,.08);
+      border-radius: 22px;
+      padding:22px 18px;
+      display:grid;
+      gap:16px;
+      min-height: 360px;
+      position:relative;
+      overflow:hidden;
+    }
+
+    .hint{ text-align:center; color: var(--muted); font-size: 12px; user-select:none; }
+
+    .digitBox{
+      display:grid;
+      place-items:center;
+      padding: 10px 0 0;
+    }
+
+    .digit{
+      width: min(360px, 80%);
+      height: 140px;
+      border-radius: 22px;
+      background: rgba(255,255,255,.06);
+      border: 1px solid rgba(255,255,255,.10);
+      box-shadow: 0 16px 32px rgba(0,0,0,.22);
+      display:grid;
+      place-items:center;
+      font-size: 86px;
+      font-weight: 900;
+      letter-spacing: 1px;
+      user-select:none;
+      transition: opacity .08s ease;
+      font-family: var(--mono);
+      min-width: 120px; /* asegura ancho mínimo para evitar cambios de layout */
+      text-align: center;
+    }
+    .digit.hidden{ opacity: 0; }
+
+    .trail{
+      display:flex;
+      justify-content:center;
+      gap:10px;
+      flex-wrap:wrap;
+      color: var(--muted);
+      font-family: var(--mono);
+      font-size: 12px;
+      user-select:none;
+      margin-top:-6px;
+    }
+    .chip{
+      padding:6px 10px;
+      border-radius:999px;
+      background: rgba(255,255,255,.05);
+      border:1px solid rgba(255,255,255,.08);
+    }
+
+    .options{
+      display:grid;
+      grid-template-columns: repeat(2, minmax(0,1fr));
+      gap:12px;
+      margin-top: 6px;
+    }
+    @media (max-width: 520px){ .options{grid-template-columns: 1fr;} }
+
+    button.opt{
+      cursor:pointer;
+      padding:16px 14px;
+      border-radius: 16px;
+      border: 1px solid rgba(255,255,255,.12);
+      background: rgba(255,255,255,.06);
+      color: var(--text);
+      font-size: 22px;
+      font-weight: 900;
+      letter-spacing:.4px;
+      box-shadow: 0 10px 22px rgba(0,0,0,.22);
+      transition: transform .06s ease, background .12s ease, border-color .12s ease;
+      user-select:none;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      min-height: 62px;
+      font-family: var(--mono);
+    }
+    button.opt:hover{ transform: translateY(-1px); background: rgba(255,255,255,.085); }
+    button.opt:active{ transform: translateY(1px) scale(.995); }
+    button.opt:focus-visible{ outline:none; box-shadow: var(--shadow), var(--ring); }
+
+    .small{ font-size:12px; color: var(--muted); line-height:1.35; }
+
+    .toast{
+      position: fixed;
+      left: 50%;
+      bottom: 18px;
+      transform: translateX(-50%);
+      background: rgba(15,27,51,.86);
+      border:1px solid rgba(255,255,255,.12);
+      border-radius: 999px;
+      padding: 10px 14px;
+      box-shadow: 0 18px 40px rgba(0,0,0,.35);
+      font-family: var(--mono);
+      font-size: 12px;
+      color: var(--text);
+      opacity:0;
+      pointer-events:none;
+      transition: opacity .2s ease, transform .2s ease;
+    }
+    .toast.show{ opacity:1; transform: translateX(-50%) translateY(-6px); }
+
+    .flash{ animation: flash .16s ease-out; }
+    @keyframes flash{ from{ transform: scale(1.01); } to{ transform: scale(1.0); } }
+
+    /* ====== COUNTDOWN OVERLAY ====== */
+    .countdownOverlay{
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(11,18,32,.95);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+      backdrop-filter: blur(8px);
+    }
+    .countdownOverlay.show{ display: flex; }
+    .countdownNumber{
+      font-size: 120px;
+      font-weight: 900;
+      font-family: var(--mono);
+      color: var(--text);
+      text-shadow: 0 0 40px rgba(120,160,255,.6);
+      animation: countdownPulse .8s ease-out;
+    }
+    @keyframes countdownPulse{
+      0%{ transform: scale(0.5); opacity: 0; }
+      50%{ transform: scale(1.1); opacity: 1; }
+      100%{ transform: scale(1); opacity: 0.8; }
+    }
+
+    /* ====== GAME MODE (oculta elementos innecesarios) ====== */
+    .card.gameMode .hd{ display: none; }
+    .card.gameMode .controls{ display: none; }
+    .card.gameMode .status{ display: none; }
+    .card.gameMode .hint{ display: none; }
+    .card.gameMode .trail{ display: none; }
+    .card.gameMode .small{ display: none; }
+    .card.gameMode .stage{
+      padding: 40px 18px;
+      min-height: unset;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      gap: 40px;
+    }
+    .card.gameMode .digitBox{ padding: 0; }
+    .card.gameMode .digit{
+      width: min(400px, 90%);
+      height: 180px;
+      font-size: 120px;
+    }
+    .card.gameMode .options{
+      width: 100%;
+      max-width: 500px;
+    }
+    @media (max-width: 880px){
+      .card.gameMode .stage{
+        padding: 30px 12px;
+        gap: 30px;
+      }
+      .card.gameMode .digit{
+        width: min(300px, 85%);
+        height: 140px;
+        font-size: 90px;
+      }
+      .countdownNumber{ font-size: 80px; }
+    }
+
+    .side{ padding:18px; display:grid; gap:14px; }
+    .panel{
+      padding:14px 14px;
+      border-radius: 16px;
+      background: rgba(255,255,255,.05);
+      border:1px solid rgba(255,255,255,.08);
+      display:grid;
+      gap:10px;
+    }
+    .side h2{ margin:0; font-size:14px; letter-spacing:.2px; }
+    .row{
+      display:flex;
+      justify-content:space-between;
+      gap:12px;
+      align-items:baseline;
+      font-family: var(--mono);
+      font-size:12px;
+      color: var(--muted);
+    }
+    .row b{color: var(--text); font-weight:900;}
+    .small{ font-size:12px; color: var(--muted); line-height:1.35; }
+
+    /* ====== CHART ====== */
+    .chartWrap{ display:grid; gap:10px; }
+    canvas#scoresChart{
+      width:100%;
+      height:160px;
+      border-radius: 14px;
+      background: rgba(255,255,255,.04);
+      border:1px solid rgba(255,255,255,.08);
+    }
+    .chartLegend{
+      display:flex;
+      justify-content:space-between;
+      gap:10px;
+      font-family: var(--mono);
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    /* ===== MOBILE FULLSCREEN MODE ===== */
+    @media (max-width: 880px) {
+      body { padding: 0; }
+      .wrap {
+        width: 100vw;
+        height: 100vh;
+        grid-template-columns: 1fr;
+        gap: 0;
+      }
+      .card {
+        border-radius: 0;
+        height: 100vh;
+        overflow-y: auto;
+        -webkit-overflow-scrolling: touch;
+      }
+      .card.stats { display: none; }
+      .card.active { display: block; }
+      .card .hd { 
+        padding: 12px 14px;
+        position: sticky;
+        top: 0;
+        background: var(--card);
+        z-index: 10;
+        border-bottom: 1px solid rgba(255,255,255,.08);
+      }
+      .main { 
+        padding: 12px;
+      }
+      .controls { flex-shrink: 0; }
+      .status { flex-shrink: 0; }
+      .stage {
+        padding: 16px 12px;
+        min-height: unset;
+      }
+      .digitBox { padding: 8px 0 0; }
+      .digit {
+        width: min(280px, 75%);
+        height: 100px;
+        font-size: 64px;
+        min-width: 100px; /* asegura ancho mínimo en mobile */
+      }
+      .trail { margin-top: -4px; gap: 6px; }
+      .chip { padding: 4px 8px; font-size: 11px; }
+      .hint { font-size: 11px; }
+      .options {
+        margin-top: 4px;
+        gap: 10px;
+        max-height: none;
+        overflow: visible;
+      }
+      button.opt {
+        padding: 14px 12px;
+        font-size: 20px;
+        min-height: 56px;
+      }
+      .small { font-size: 11px; }
+      .mobile-toggle {
+        position: fixed;
+        top: 10px;
+        right: 10px;
+        z-index: 999;
+        padding: 10px 12px;
+        border-radius: 999px;
+        border: 1px solid rgba(255,255,255,.15);
+        background: rgba(15,27,51,.85);
+        color: var(--text);
+        font-weight: 800;
+        font-size: 12px;
+        backdrop-filter: blur(8px);
+        cursor: pointer;
+        box-shadow: var(--shadow);
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <section class="card game active">
+      <div class="hd">
+        <div class="title">
+          <h1>N-Back Self-Paced Trainer</h1>
+          <div class="sub">
+            Recordá el dígito de <b>N pasos atrás</b>. Sin tiempo límite: avanzás al hacer click. <b>60 dígitos</b> por sesión.
+          </div>
+        </div>
+        <div class="pillrow">
+          <div class="pill">Sesión: <b>60</b> dígitos</div>
+          <div class="pill">Subís con <b>≥100 puntos</b> y <b>3 sesiones</b> consecutivas aprobadas</div>
+        </div>
+      </div>
+
+      <div class="main">
+        <div class="controls">
+          <div class="btnrow">
+            <button class="btn primary" id="btnStart">▶ Iniciar</button>
+            <button class="btn" id="btnStop" disabled>⏹ Detener</button>
+            <button class="btn" id="btnRestart" disabled>↻ Reiniciar</button>
+          </div>
+          <div class="badge">
+            <span class="dot" id="dotRun"></span>
+            <span id="lblState">Listo</span>
+          </div>
+        </div>
+
+        <div class="status">
+          <div class="stat"><div class="k">NIVEL</div><div class="v" id="vLevel">1</div></div>
+          <div class="stat"><div class="k">N-BACK</div><div class="v" id="vNBack">2</div></div>
+          <div class="stat"><div class="k">PUNTAJE</div><div class="v" id="vScore">0</div></div>
+          <div class="stat"><div class="k">PROGRESO</div><div class="v" id="vProg">0/60</div></div>
+          <div class="stat"><div class="k">ACIERTO</div><div class="v" id="vAcc">—</div></div>
+          <div class="stat"><div class="k">RACHA</div><div class="v" id="vStreak">0</div></div>
+        </div>
+
+        <div class="stage" id="stage">
+          <div class="hint">Recordá el dígito que apareció <b id="hintNBack">1 paso</b> atrás. Elegí la opción correcta cuando aparezcan.</div>
+
+          <div class="digitBox">
+            <div class="digit" id="digit">—</div>
+          </div>
+
+          <div class="trail">
+            <span class="chip" id="chipNBack">N-back: —</span>
+            <span class="chip" id="chipPassStreak">Aprobadas: 0/3</span>
+          </div>
+
+          <div class="hint">Elegí la opción correcta (las incorrectas son cercanas).</div>
+          <div class="options" id="options"></div>
+          <div id="warmupButton" style="display:none; text-align:center; margin-top:12px;">
+            <button class="btn primary" id="btnNextWarmup">Continuar</button>
+          </div>
+
+          <div class="small">
+            <b>N-Back:</b> Nivel 1 = 2-back, Nivel 2 = 3-back, etc.
+            <br/>La respuesta correcta es el dígito de <b>(N-1) pasos atrás</b>.
+            <br/>Siempre <b>60 dígitos</b> por sesión (incluye warmup).
+            <br/><b>Subida:</b> necesitás ≥100 puntos y 3 sesiones consecutivas aprobadas.
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <aside class="card stats">
+      <div class="hd">
+        <div class="title">
+          <h1>Estadísticas</h1>
+          <div class="sub">Se guardan en tu navegador (localStorage).</div>
+        </div>
+        <div class="pillrow">
+          <button class="btn danger" id="btnResetStats">Borrar stats</button>
+        </div>
+      </div>
+
+      <div class="side">
+        <div class="panel">
+          <h2>Progreso</h2>
+          <div class="row"><span>Nivel actual</span><b id="sCurLevel">1</b></div>
+          <div class="row"><span>N-Back actual</span><b id="sCurNBack">2</b></div>
+          <div class="row"><span>Mejor nivel</span><b id="sMaxLevel">1</b></div>
+          <div class="row"><span>Aprobadas seguidas</span><b id="sPassStreak">0/3</b></div>
+          <div class="row"><span>Intentos</span><b id="sAttempts">0</b></div>
+        </div>
+
+        <div class="panel">
+          <h2>% Correct en el tiempo</h2>
+          <div class="chartWrap">
+            <canvas id="scoresChart" width="900" height="260"></canvas>
+            <div class="chartLegend">
+              <span>Sesiones: <b id="sSessionsCount">0</b></span>
+              <span>Mejor %: <b id="sBestEver">—</b></span>
+            </div>
+          </div>
+          <div class="small">Línea = % correct por sesión (orden cronológico).</div>
+        </div>
+
+        <div class="panel">
+          <h2>Puntaje en el tiempo</h2>
+          <div class="chartWrap">
+            <canvas id="scoreChart" width="900" height="260"></canvas>
+            <div class="chartLegend">
+              <span>Sesiones: <b id="sScoreSessionsCount">0</b></span>
+              <span>Mejor puntaje: <b id="sBestScore">—</b></span>
+            </div>
+          </div>
+          <div class="small">Línea = puntaje final por sesión (orden cronológico).</div>
+        </div>
+
+        <div class="panel">
+          <h2>Última sesión</h2>
+          <div class="row"><span>Puntaje</span><b id="sLastScore">—</b></div>
+          <div class="row"><span>Correct / Wrong</span><b id="sLastCW">—</b></div>
+          <div class="row"><span>Precisión</span><b id="sLastAcc">—</b></div>
+          <div class="row"><span>RT prom</span><b id="sLastRT">—</b></div>
+          <div class="row"><span>Nivel</span><b id="sLastLevel">—</b></div>
+          <div class="row"><span>N-Back</span><b id="sLastNBack">—</b></div>
+        </div>
+
+        <div class="panel">
+          <h2>Mejor por nivel</h2>
+          <div class="small" id="bestByLevel">—</div>
+        </div>
+
+        <div class="panel">
+          <h2>Próximos niveles</h2>
+          <div class="small" id="lvlExplain">—</div>
+        </div>
+        
+        <div class="panel">
+          <h2>Progreso de subida</h2>
+          <div class="small" id="passStreakInfo">Aprobadas seguidas: 0/3</div>
+        </div>
+      </div>
+    </aside>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <!-- Countdown overlay -->
+  <div class="countdownOverlay" id="countdownOverlay">
+    <div class="countdownNumber" id="countdownNumber">3</div>
+  </div>
+
+  <!-- Botón mobile -->
+  <button class="mobile-toggle" id="btnToggleView">📊 Stats</button>
+
+<script>
+(() => {
+  // ========= CONFIG =========
+  const TOTAL_DIGITS = 60; // siempre 60 dígitos por sesión
+  const DIGITS = [1,2,3,4,5,6,7,8,9]; // dígitos posibles
+  const OPTIONS_COUNT = 4; // número de opciones en cada pregunta
+  const WARMUP_PAUSE_MS = 650; // pausa entre dígitos de warmup (500-800ms)
+
+  // ========= STORAGE =========
+  const KEY = "nback_selfpaced_v1";
+  function loadState(){
+    try{
+      const raw = localStorage.getItem(KEY);
+      if(!raw) return { currentLevel: 1, maxLevel: 1, attempts: 0, passStreak: 0, bestByLevel: {}, lastSession: null, sessions: [] };
+      const obj = JSON.parse(raw);
+      return {
+        currentLevel: Math.max(1, obj.currentLevel || 1),
+        maxLevel: Math.max(1, obj.maxLevel || 1),
+        attempts: obj.attempts || 0,
+        passStreak: Math.max(0, obj.passStreak || 0),
+        bestByLevel: obj.bestByLevel || {},
+        lastSession: obj.lastSession || null,
+        sessions: Array.isArray(obj.sessions) ? obj.sessions : []
+      };
+    }catch{
+      return { currentLevel: 1, maxLevel: 1, attempts: 0, passStreak: 0, bestByLevel: {}, lastSession: null, sessions: [] };
+    }
+  }
+  function saveState(){ localStorage.setItem(KEY, JSON.stringify(appState)); }
+  let appState = loadState();
+
+  // ========= LEVEL MODEL =========
+  // Nivel 1 = 2-back, Nivel 2 = 3-back, etc.
+  // N-back significa: respuesta correcta es el dígito de (N-1) pasos atrás
+  function nBackForLevel(level){
+    return level + 1; // nivel 1 = 2-back, nivel 2 = 3-back, etc.
+  }
+  function levelInfo(level){
+    const nBack = nBackForLevel(level);
+    return {
+      nBack: nBack,
+      warmupCount: nBack - 1 // dígitos de warmup necesarios
+    };
+  }
+
+  // ========= UI =========
+  const el = (id) => document.getElementById(id);
+
+  const btnStart = el("btnStart");
+  const btnStop = el("btnStop");
+  const btnRestart = el("btnRestart");
+  const btnResetStats = el("btnResetStats");
+
+  const dotRun = el("dotRun");
+  const lblState = el("lblState");
+
+  const vLevel = el("vLevel");
+  const vNBack = el("vNBack");
+  const vScore = el("vScore");
+  const vProg = el("vProg");
+  const vAcc = el("vAcc");
+  const vStreak = el("vStreak");
+
+  const stage = el("stage");
+  const digitEl = el("digit");
+  const optionsBox = el("options");
+  const warmupButton = el("warmupButton");
+  const btnNextWarmup = el("btnNextWarmup");
+  const chipNBack = el("chipNBack");
+  const chipPassStreak = el("chipPassStreak");
+  const hintNBack = el("hintNBack");
+  const toast = el("toast");
+  const countdownOverlay = el("countdownOverlay");
+  const countdownNumber = el("countdownNumber");
+  const gameCard = document.querySelector(".card.game");
+
+  const sCurLevel = el("sCurLevel");
+  const sCurNBack = el("sCurNBack");
+  const sMaxLevel = el("sMaxLevel");
+  const sPassStreak = el("sPassStreak");
+  const sAttempts = el("sAttempts");
+  const sLastScore = el("sLastScore");
+  const sLastCW = el("sLastCW");
+  const sLastAcc = el("sLastAcc");
+  const sLastRT = el("sLastRT");
+  const sLastLevel = el("sLastLevel");
+  const sLastNBack = el("sLastNBack");
+  const bestByLevelEl = el("bestByLevel");
+  const lvlExplainEl = el("lvlExplain");
+  const passStreakInfo = el("passStreakInfo");
+
+  const chart = el("scoresChart");
+  const sSessionsCount = el("sSessionsCount");
+  const sBestEver = el("sBestEver");
+
+  const scoreChart = el("scoreChart");
+  const sScoreSessionsCount = el("sScoreSessionsCount");
+  const sBestScore = el("sBestScore");
+
+  function showToast(msg){
+    toast.textContent = msg;
+    toast.classList.add("show");
+    setTimeout(() => toast.classList.remove("show"), 1400);
+  }
+  function setRunningUI(on){
+    dotRun.classList.toggle("on", on);
+    lblState.textContent = on ? "Jugando" : "Listo";
+    btnStart.disabled = on;
+    btnStop.disabled = !on;
+    btnRestart.disabled = !on;
+  }
+  function fmtPct(x){
+    if(!isFinite(x)) return "—";
+    return `${Math.round(x)}%`;
+  }
+
+  function renderStatsPanel(){
+    const curLevel = appState.currentLevel;
+    const curNBack = nBackForLevel(curLevel);
+    
+    sCurLevel.textContent = curLevel;
+    sCurNBack.textContent = curNBack;
+    sMaxLevel.textContent = appState.maxLevel;
+    sPassStreak.textContent = `${appState.passStreak}/3`;
+    sAttempts.textContent = appState.attempts;
+
+    const ls = appState.lastSession;
+    if(!ls){
+      sLastScore.textContent = "—";
+      sLastCW.textContent = "—";
+      sLastAcc.textContent = "—";
+      sLastRT.textContent = "—";
+      sLastLevel.textContent = "—";
+      sLastNBack.textContent = "—";
+    }else{
+      sLastScore.textContent = ls.score != null ? ls.score.toFixed(1) : "—";
+      sLastCW.textContent = `${ls.correct || 0} / ${ls.wrong || 0}`;
+      sLastAcc.textContent = fmtPct(ls.accuracy);
+      sLastRT.textContent = (ls.avgRTms != null) ? `${Math.round(ls.avgRTms)} ms` : "—";
+      sLastLevel.textContent = ls.level != null ? ls.level : "—";
+      sLastNBack.textContent = ls.nBack != null ? ls.nBack : "—";
+    }
+
+    const keys = Object.keys(appState.bestByLevel).map(n=>parseInt(n,10)).sort((a,b)=>a-b);
+    if(keys.length === 0){
+      bestByLevelEl.textContent = "Todavía no hay récords guardados.";
+    }else{
+      bestByLevelEl.innerHTML = keys.map(k=>{
+        const best = appState.bestByLevel[k];
+        const li = levelInfo(k);
+        const bestStr = typeof best === "number" ? best.toFixed(1) : best;
+        return `Nivel <b>${k}</b> (${li.nBack}-back) — mejor: <b>${bestStr}</b> puntos`;
+      }).join("<br/>");
+    }
+
+    const lines = [];
+    for(let lv=curLevel; lv<=curLevel+5; lv++){
+      const li = levelInfo(lv);
+      lines.push(`Nivel <b>${lv}</b>: <b>${li.nBack}-back</b> (warmup: ${li.warmupCount} dígitos)`);
+    }
+    lvlExplainEl.innerHTML = lines.join("<br/>");
+
+    passStreakInfo.textContent = `Aprobadas seguidas: ${appState.passStreak}/3`;
+
+    drawScoresChart();
+    drawScoreChart();
+  }
+
+  // ========= CHART =========
+  function drawScoresChart(){
+    if(!chart) return;
+
+    const ctx = chart.getContext("2d");
+    const W = chart.width;
+    const H = chart.height;
+    ctx.clearRect(0,0,W,H);
+
+    const sessions = Array.isArray(appState.sessions) ? appState.sessions : [];
+    const accuracies = sessions.map(s => {
+      if(typeof s.accuracy === "number" && isFinite(s.accuracy)) return s.accuracy;
+      return null;
+    }).filter(x => x !== null);
+
+    sSessionsCount.textContent = String(accuracies.length);
+
+    if(accuracies.length === 0){
+      sBestEver.textContent = "—";
+      ctx.globalAlpha = 0.85;
+      ctx.font = "16px ui-monospace, Menlo, Consolas, monospace";
+      ctx.fillStyle = "rgba(233,238,252,.75)";
+      ctx.fillText("Todavía no hay sesiones guardadas.", 18, 46);
+      ctx.font = "12px ui-monospace, Menlo, Consolas, monospace";
+      ctx.fillStyle = "rgba(233,238,252,.55)";
+      ctx.fillText("Jugá al menos 1 sesión para ver el gráfico.", 18, 70);
+      ctx.globalAlpha = 1;
+      return;
+    }
+
+    const best = Math.max(...accuracies);
+    sBestEver.textContent = `${Math.round(best)}%`;
+
+    const padL = 42, padR = 14, padT = 16, padB = 30;
+    const iw = W - padL - padR;
+    const ih = H - padT - padB;
+
+    let minY = Math.min(...accuracies);
+    let maxY = Math.max(...accuracies);
+    if(minY === maxY){ minY = Math.max(0, minY - 5); maxY = Math.min(100, maxY + 5); }
+    const extra = Math.max(1, (maxY - minY) * 0.1);
+    minY = Math.max(0, minY - extra);
+    maxY = Math.min(100, maxY + extra);
+
+    const xFor = (i) => padL + (iw * (accuracies.length === 1 ? 0 : (i/(accuracies.length-1))));
+    const yFor = (v) => padT + (ih * (1 - ((v - minY) / (maxY - minY))));
+
+    ctx.lineWidth = 1;
+    ctx.strokeStyle = "rgba(255,255,255,.10)";
+    for(let k=0;k<=3;k++){
+      const y = padT + (ih * (k/3));
+      ctx.beginPath(); ctx.moveTo(padL, y); ctx.lineTo(padL+iw, y); ctx.stroke();
+    }
+
+    ctx.strokeStyle = "rgba(255,255,255,.16)";
+    ctx.beginPath(); ctx.moveTo(padL, padT); ctx.lineTo(padL, padT+ih); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(padL, padT+ih); ctx.lineTo(padL+iw, padT+ih); ctx.stroke();
+
+    ctx.fillStyle = "rgba(233,238,252,.65)";
+    ctx.font = "12px ui-monospace, Menlo, Consolas, monospace";
+    ctx.fillText(`${Math.round(maxY)}%`, 8, padT + 12);
+    ctx.fillText(`${Math.round(minY)}%`, 8, padT + ih);
+
+    ctx.lineWidth = 2;
+    ctx.strokeStyle = "rgba(120,160,255,.95)";
+    ctx.beginPath();
+    accuracies.forEach((v,i) => {
+      const x = xFor(i);
+      const y = yFor(v);
+      if(i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
+    });
+    ctx.stroke();
+
+    ctx.fillStyle = "rgba(255,255,255,.9)";
+    accuracies.forEach((v,i) => {
+      const x = xFor(i);
+      const y = yFor(v);
+      ctx.beginPath();
+      ctx.arc(x,y,3,0,Math.PI*2);
+      ctx.fill();
+    });
+
+    ctx.fillStyle = "rgba(233,238,252,.55)";
+    ctx.font = "12px ui-monospace, Menlo, Consolas, monospace";
+    ctx.fillText(`Sesiones (1 … ${accuracies.length})`, padL, H - 10);
+  }
+
+  function drawScoreChart(){
+    if(!scoreChart) return;
+
+    const ctx = scoreChart.getContext("2d");
+    const W = scoreChart.width;
+    const H = scoreChart.height;
+    ctx.clearRect(0,0,W,H);
+
+    const sessions = Array.isArray(appState.sessions) ? appState.sessions : [];
+    const scores = sessions.map(s => {
+      if(typeof s.score === "number" && isFinite(s.score)) return s.score;
+      return null;
+    }).filter(x => x !== null);
+
+    sScoreSessionsCount.textContent = String(scores.length);
+
+    if(scores.length === 0){
+      sBestScore.textContent = "—";
+      ctx.globalAlpha = 0.85;
+      ctx.font = "16px ui-monospace, Menlo, Consolas, monospace";
+      ctx.fillStyle = "rgba(233,238,252,.75)";
+      ctx.fillText("Todavía no hay sesiones guardadas.", 18, 46);
+      ctx.font = "12px ui-monospace, Menlo, Consolas, monospace";
+      ctx.fillStyle = "rgba(233,238,252,.55)";
+      ctx.fillText("Jugá al menos 1 sesión para ver el gráfico.", 18, 70);
+      ctx.globalAlpha = 1;
+      return;
+    }
+
+    const best = Math.max(...scores);
+    sBestScore.textContent = best.toFixed(1);
+
+    const padL = 42, padR = 14, padT = 16, padB = 30;
+    const iw = W - padL - padR;
+    const ih = H - padT - padB;
+
+    let minY = Math.min(...scores);
+    let maxY = Math.max(...scores);
+    if(minY === maxY){ minY -= 1; maxY += 1; }
+    const extra = Math.max(1, Math.round((maxY - minY) * 0.1));
+    minY -= extra; maxY += extra;
+
+    const xFor = (i) => padL + (iw * (scores.length === 1 ? 0 : (i/(scores.length-1))));
+    const yFor = (v) => padT + (ih * (1 - ((v - minY) / (maxY - minY))));
+
+    ctx.lineWidth = 1;
+    ctx.strokeStyle = "rgba(255,255,255,.10)";
+    for(let k=0;k<=3;k++){
+      const y = padT + (ih * (k/3));
+      ctx.beginPath(); ctx.moveTo(padL, y); ctx.lineTo(padL+iw, y); ctx.stroke();
+    }
+
+    ctx.strokeStyle = "rgba(255,255,255,.16)";
+    ctx.beginPath(); ctx.moveTo(padL, padT); ctx.lineTo(padL, padT+ih); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(padL, padT+ih); ctx.lineTo(padL+iw, padT+ih); ctx.stroke();
+
+    ctx.fillStyle = "rgba(233,238,252,.65)";
+    ctx.font = "12px ui-monospace, Menlo, Consolas, monospace";
+    ctx.fillText(maxY.toFixed(1), 8, padT + 12);
+    ctx.fillText(minY.toFixed(1), 8, padT + ih);
+
+    ctx.lineWidth = 2;
+    ctx.strokeStyle = "rgba(53,208,127,.95)";
+    ctx.beginPath();
+    scores.forEach((v,i) => {
+      const x = xFor(i);
+      const y = yFor(v);
+      if(i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
+    });
+    ctx.stroke();
+
+    ctx.fillStyle = "rgba(255,255,255,.9)";
+    scores.forEach((v,i) => {
+      const x = xFor(i);
+      const y = yFor(v);
+      ctx.beginPath();
+      ctx.arc(x,y,3,0,Math.PI*2);
+      ctx.fill();
+    });
+
+    ctx.fillStyle = "rgba(233,238,252,.55)";
+    ctx.font = "12px ui-monospace, Menlo, Consolas, monospace";
+    ctx.fillText(`Sesiones (1 … ${scores.length})`, padL, H - 10);
+  }
+
+  // ========= GAME STATE =========
+  let running = false;
+  let sequence = []; // historial de dígitos mostrados
+  let digitsShown = 0; // contador de dígitos mostrados (0-60)
+  let pendingAnswer = false;
+  let correctAnswer = null; // dígito correcto para la pregunta actual
+  let trialStartAt = null; // inicio del trial actual (para RT)
+  
+  let score = 0;
+  let correct = 0;
+  let wrong = 0;
+  
+  let rtSum = 0; // suma de RTs en segundos
+  let rtCount = 0;
+  
+  let streakCorrect = 0; // racha de aciertos seguidos
+
+  // ========= Helpers =========
+  function randInt(n){ return Math.floor(Math.random()*n); }
+  function pickOne(arr){ return arr[randInt(arr.length)]; }
+  function shuffle(a){
+    const arr = a.slice();
+    for(let i=arr.length-1;i>0;i--){
+      const j = Math.floor(Math.random()*(i+1));
+      [arr[i], arr[j]] = [arr[j], arr[i]];
+    }
+    return arr;
+  }
+  function clamp(x, lo, hi){ return Math.max(lo, Math.min(hi, x)); }
+
+  function makeNearDistractor(correctValue, used){
+    // Distractores cercanos al valor correcto
+    const deltas = shuffle([1,2,3]);
+    for(const d of deltas){
+      for(const s of shuffle([-1, +1])){
+        const v = clamp(correctValue + s*d, 1, 9);
+        if(v !== correctValue && !used.has(v)) return v;
+      }
+    }
+    // Si no hay cercanos disponibles, buscar cualquier dígito no usado
+    for(let v=1; v<=9; v++){
+      if(v !== correctValue && !used.has(v)) return v;
+    }
+    return clamp(correctValue+1, 1, 9);
+  }
+
+  function lockButtons(){
+    optionsBox.querySelectorAll("button").forEach(b => b.disabled = true);
+  }
+
+  function flash(){
+    stage.classList.remove("flash");
+    void stage.offsetWidth;
+    stage.classList.add("flash");
+  }
+
+  function showDigit(value){
+    // Guardar posición de scroll en mobile antes de actualizar
+    const card = document.querySelector(".card.game");
+    let scrollTop = null;
+    if(card && window.innerWidth <= 880){
+      scrollTop = card.scrollTop;
+    }
+    
+    digitEl.textContent = String(value);
+    digitEl.classList.remove("hidden");
+    
+    // Restaurar posición de scroll después de un breve delay para que el layout se estabilice
+    if(scrollTop != null && card){
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          if(card.scrollTop !== scrollTop){
+            card.scrollTop = scrollTop;
+          }
+        });
+      });
+    }
+  }
+
+  function renderOptions(){
+    optionsBox.innerHTML = "";
+    optionsBox.style.gridTemplateColumns = (window.innerWidth <= 520)
+      ? "1fr"
+      : `repeat(${Math.min(OPTIONS_COUNT, 3)}, minmax(0,1fr))`;
+
+    if(!pendingAnswer){
+      for(let i=0;i<OPTIONS_COUNT;i++){
+        const b = document.createElement("button");
+        b.className = "opt";
+        b.textContent = "—";
+        b.disabled = true;
+        optionsBox.appendChild(b);
+      }
+      return;
+    }
+
+    const used = new Set([correctAnswer]);
+    const options = [correctAnswer];
+    while(options.length < OPTIONS_COUNT){
+      const d = makeNearDistractor(correctAnswer, used);
+      options.push(d);
+      used.add(d);
+    }
+
+    shuffle(options).forEach(val=>{
+      const b = document.createElement("button");
+      b.className = "opt";
+      b.textContent = String(val);
+      b.addEventListener("click", () => onAnswer(val, b));
+      optionsBox.appendChild(b);
+    });
+  }
+
+  function renderHUD(){
+    const li = levelInfo(appState.currentLevel);
+    const nBack = li.nBack;
+
+    vLevel.textContent = appState.currentLevel;
+    vNBack.textContent = nBack;
+    vScore.textContent = score.toFixed(1);
+    vProg.textContent = `${digitsShown}/${TOTAL_DIGITS}`;
+
+    const total = correct + wrong;
+    const acc = total ? (correct/total)*100 : NaN;
+    vAcc.textContent = total ? fmtPct(acc) : "—";
+
+    vStreak.textContent = streakCorrect;
+
+    vScore.classList.toggle("good", score > 0);
+    vScore.classList.toggle("bad", score < 0);
+
+    chipNBack.textContent = `${nBack}-back`;
+    chipPassStreak.textContent = `Aprobadas: ${appState.passStreak}/3`;
+    
+    const hintText = nBack === 2 ? "1 paso" : `${nBack - 1} pasos`;
+    hintNBack.textContent = hintText;
+  }
+
+  // ========= Core game functions =========
+  function showNextDigit(){
+    if(!running) return;
+    
+    // Si ya completamos 60 dígitos, terminar sesión
+    if(digitsShown >= TOTAL_DIGITS){
+      endSession(false);
+      return;
+    }
+    
+    // Generar nuevo dígito
+    const newDigit = pickOne(DIGITS);
+    sequence.push(newDigit);
+    digitsShown += 1;
+    
+    // Mostrar dígito
+    showDigit(newDigit);
+    
+    // Verificar si corresponde hacer pregunta
+    const li = levelInfo(appState.currentLevel);
+    const nBack = li.nBack;
+    const stepsBack = nBack - 1; // dígitos a mirar atrás
+    
+    if(sequence.length > stepsBack){
+      // Hay suficientes dígitos para hacer pregunta
+      correctAnswer = sequence[sequence.length - 1 - stepsBack];
+      pendingAnswer = true;
+      trialStartAt = performance.now();
+      // Ocultar botón de warmup, mostrar opciones
+      if(warmupButton) warmupButton.style.display = "none";
+    }else{
+      // Aún en warmup
+      pendingAnswer = false;
+      correctAnswer = null;
+      // Mostrar botón de warmup si no es el último dígito de warmup
+      if(warmupButton && digitsShown < TOTAL_DIGITS){
+        warmupButton.style.display = "block";
+      }else if(warmupButton){
+        warmupButton.style.display = "none";
+      }
+    }
+    
+    renderOptions();
+    renderHUD();
+  }
+  
+  function onAnswer(val, btn){
+    if(!running) return;
+    if(!pendingAnswer) return;
+    
+    lockButtons();
+    
+    // Ocultar botón de warmup si estaba visible
+    if(warmupButton) warmupButton.style.display = "none";
+    
+    const ok = val === correctAnswer;
+    pendingAnswer = false;
+    
+    // Calcular RT en segundos
+    let rtSeconds = null;
+    if(trialStartAt != null){
+      rtSeconds = (performance.now() - trialStartAt) / 1000;
+      rtSeconds = Math.max(0.05, rtSeconds); // protección contra división por 0
+      rtSum += rtSeconds;
+      rtCount += 1;
+    }
+    
+    const li = levelInfo(appState.currentLevel);
+    const nBack = li.nBack;
+    let roundScore = 0;
+    let streakBonus = 0;
+    
+    if(ok){
+      correct += 1;
+      
+      // Puntaje por acierto: N / rtSeconds
+      if(rtSeconds != null){
+        roundScore = nBack / rtSeconds;
+      }else{
+        roundScore = 0;
+      }
+      
+      // Bonus por racha: +N cada 10 correctos consecutivos
+      streakCorrect += 1;
+      if(streakCorrect % 10 === 0){
+        streakBonus = nBack;
+        showToast(`¡Racha de ${streakCorrect}! +${streakBonus.toFixed(1)} puntos`);
+      }
+      
+      score += roundScore + streakBonus;
+      
+      btn.style.borderColor = "rgba(53,208,127,.55)";
+      btn.style.background = "rgba(53,208,127,.12)";
+    }else{
+      wrong += 1;
+      roundScore = -1; // penalización por error
+      streakCorrect = 0; // reset racha
+      score += roundScore;
+      
+      btn.style.borderColor = "rgba(255,77,109,.55)";
+      btn.style.background = "rgba(255,77,109,.12)";
+      showToast(`Incorrecto → era ${correctAnswer}`);
+    }
+    
+    flash();
+    renderHUD();
+    
+    // Avanzar al siguiente dígito inmediatamente
+    setTimeout(() => {
+      showNextDigit();
+    }, 300); // pequeña pausa para feedback visual
+  }
+
+  // ========= Session control =========
+  function startSession(){
+    if(running) return;
+
+    const li = levelInfo(appState.currentLevel);
+    const warmupCount = li.warmupCount;
+
+    // Reset estado
+    sequence = [];
+    digitsShown = 0;
+    pendingAnswer = false;
+    correctAnswer = null;
+    trialStartAt = null;
+
+    score = 0;
+    correct = 0;
+    wrong = 0;
+    rtSum = 0;
+    rtCount = 0;
+    streakCorrect = 0;
+    
+    // Ocultar botón de warmup al inicio
+    if(warmupButton) warmupButton.style.display = "none";
+
+    appState.attempts += 1;
+    saveState();
+    renderStatsPanel();
+
+    // Activar modo juego
+    if(gameCard) gameCard.classList.add("gameMode");
+
+    // Contador de 3 segundos
+    if(!countdownOverlay || !countdownNumber){
+      // Fallback: iniciar directamente
+      running = true;
+      setRunningUI(true);
+      startWarmup();
+      renderHUD();
+      return;
+    }
+
+    let count = 3;
+    countdownNumber.textContent = String(count);
+    countdownOverlay.classList.add("show");
+
+    function countdownTick(){
+      count--;
+      if(count > 0){
+        countdownNumber.textContent = String(count);
+        setTimeout(countdownTick, 1000);
+      }else{
+        countdownNumber.textContent = "¡";
+        setTimeout(() => {
+          countdownOverlay.classList.remove("show");
+          running = true;
+          setRunningUI(true);
+          startWarmup();
+          renderHUD();
+        }, 500);
+      }
+    }
+
+    setTimeout(countdownTick, 1000);
+  }
+  
+  function startWarmup(){
+    // Mostrar primer dígito inmediatamente (sin esperar click)
+    showNextDigit();
+    
+    // Los siguientes dígitos de warmup esperan click en el botón "Continuar"
+    // El botón se mostrará automáticamente si aún estamos en warmup
+  }
+  
+  function onWarmupNext(){
+    if(!running) return;
+    showNextDigit();
+  }
+
+  function stopSession(){
+    endSession(true);
+  }
+
+  function restartSession(){
+    if(running) stopSession();
+    startSession();
+  }
+
+  function endSession(manual){
+    if(!running && !manual) return;
+
+    running = false;
+    setRunningUI(false);
+
+    // Desactivar modo juego
+    if(gameCard) gameCard.classList.remove("gameMode");
+
+    lockButtons();
+    
+    // Ocultar botón de warmup
+    if(warmupButton) warmupButton.style.display = "none";
+
+    const total = correct + wrong;
+    const acc = total ? (correct/total)*100 : null;
+    const avgRTms = rtCount ? (rtSum/rtCount) * 1000 : null; // convertir a ms
+
+    const li = levelInfo(appState.currentLevel);
+    const nBack = li.nBack;
+
+    const session = {
+      at: new Date().toISOString(),
+      level: appState.currentLevel,
+      nBack: nBack,
+      score: Math.round(score * 10) / 10, // redondear a 1 decimal
+      correct, wrong,
+      accuracy: acc,
+      avgRTms: avgRTms
+    };
+
+    appState.lastSession = session;
+
+    appState.sessions = Array.isArray(appState.sessions) ? appState.sessions : [];
+    appState.sessions.push({
+      at: session.at,
+      score: session.score,
+      accuracy: session.accuracy,
+      level: session.level,
+      nBack: session.nBack,
+      correct: session.correct,
+      wrong: session.wrong
+    });
+    if(appState.sessions.length > 400) appState.sessions = appState.sessions.slice(-400);
+
+    // Guardar mejor puntaje por nivel
+    const prevBest = appState.bestByLevel[appState.currentLevel];
+    if(prevBest == null || session.score > prevBest){
+      appState.bestByLevel[appState.currentLevel] = session.score;
+    }
+
+    // Nueva regla de subida: score >= 100 y 3 sesiones consecutivas
+    if(!manual && digitsShown >= TOTAL_DIGITS){
+      const isApproved = session.score >= 100;
+      
+      if(isApproved){
+        appState.passStreak += 1;
+        if(appState.passStreak >= 3){
+          appState.currentLevel += 1;
+          appState.maxLevel = Math.max(appState.maxLevel, appState.currentLevel);
+          appState.passStreak = 0; // reset streak
+          showToast(`¡Subiste a nivel ${appState.currentLevel} (${nBackForLevel(appState.currentLevel)}-back)!`);
+        }else{
+          showToast(`Sesión aprobada (${session.score.toFixed(1)} pts). Aprobadas seguidas: ${appState.passStreak}/3`);
+        }
+      }else{
+        appState.passStreak = 0; // reset streak al fallar
+        showToast(`Fin: ${session.score.toFixed(1)} puntos (necesitás ≥100 para aprobar) - Nivel ${appState.currentLevel}`);
+      }
+    }else if(!manual){
+      showToast(`Fin: ${session.score.toFixed(1)} puntos - Nivel ${appState.currentLevel}`);
+    }
+
+    saveState();
+    renderStatsPanel();
+    renderHUD();
+  }
+
+  function resetStats(){
+    if(running) stopSession();
+    localStorage.removeItem(KEY);
+    appState = loadState();
+    renderStatsPanel();
+    renderHUD();
+    showToast("Stats borradas.");
+  }
+
+  // ========= INIT =========
+  if(!btnStart){
+    console.error("btnStart not found!");
+  }else{
+    btnStart.addEventListener("click", startSession);
+  }
+  if(btnStop) btnStop.addEventListener("click", stopSession);
+  if(btnRestart) btnRestart.addEventListener("click", restartSession);
+  if(btnResetStats) btnResetStats.addEventListener("click", resetStats);
+  if(btnNextWarmup) btnNextWarmup.addEventListener("click", onWarmupNext);
+
+  renderStatsPanel();
+  renderHUD();
+
+  // ===== MOBILE VIEW TOGGLE (robusto) =====
+  document.addEventListener("DOMContentLoaded", () => {
+    const btnToggleView = document.getElementById("btnToggleView");
+    const gameCard = document.querySelector(".card.game");
+    const statsCard = document.querySelector(".card.stats");
+    if(!btnToggleView || !gameCard || !statsCard) return;
+
+    let showingStats = false;
+
+    function updateToggleLabel() {
+      btnToggleView.textContent = showingStats ? "🎮 Juego" : "📊 Stats";
+    }
+
+    btnToggleView.addEventListener("click", () => {
+      showingStats = !showingStats;
+      gameCard.classList.toggle("active", !showingStats);
+      statsCard.classList.toggle("active", showingStats);
+      updateToggleLabel();
+
+      // por si el canvas estaba oculto, redibujo
+      setTimeout(() => {
+        drawScoresChart();
+        drawScoreChart();
+      }, 50);
+    });
+
+    updateToggleLabel();
+  });
+
+  // También redibujo el chart en resize (útil si rotás el celu)
+  window.addEventListener("resize", () => {
+    // pequeño debounce
+    clearTimeout(window.__chartResizeT);
+    window.__chartResizeT = setTimeout(() => {
+      drawScoresChart();
+      drawScoreChart();
+    }, 100);
+  });
+
+  // Demo visual (no running)
+  (function demo(){
+    digitEl.textContent = "7";
+    digitEl.classList.remove("hidden");
+    sequence = [3, 7];
+    digitsShown = 2;
+    pendingAnswer = false;
+    renderOptions();
+    renderHUD();
+  })();
+})();
+</script>
+</body>
+</html>
