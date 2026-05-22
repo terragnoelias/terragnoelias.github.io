@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Adivinar numero</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    background: linear-gradient(160deg, #1e293b, #0f172a);
+    min-height: 100vh;
+    display: flex; align-items: center; justify-content: center;
+    padding: 20px;
+    color: #e2e8f0;
+  }
+  .panel {
+    position: relative;
+    background: #1e293b;
+    border: 1px solid #334155;
+    border-radius: 20px;
+    padding: 28px;
+    width: 100%; max-width: 620px;
+    box-shadow: 0 20px 50px rgba(0,0,0,.45);
+  }
+  h1 { font-size: 1.4rem; text-align: center; margin-bottom: 6px; font-weight: 600; }
+
+  .engranaje {
+    position: absolute; top: 18px; right: 18px;
+    background: none; border: none; color: #94a3b8;
+    font-size: 1.5rem; cursor: pointer; padding: 4px 8px;
+    transition: transform .25s ease, color .15s;
+    line-height: 1;
+    display: none;
+  }
+  .engranaje:hover { color: #38bdf8; transform: rotate(45deg); }
+  #estadoConfig {
+    text-align: center; font-size: .82rem; color: #64748b;
+    margin-bottom: 22px; letter-spacing: .3px;
+  }
+
+  /* --- Inicio --- */
+  .campo { margin-bottom: 18px; }
+  .campo > label { display: block; font-size: .85rem; color: #94a3b8; margin-bottom: 8px; }
+  #numero {
+    width: 100%; padding: 14px; font-size: 1.6rem; text-align: center;
+    border-radius: 12px; border: 2px solid #334155; background: #0f172a; color: #fff;
+  }
+  #numero.error { border-color: #ef4444; }
+  .modo { display: flex; gap: 12px; }
+  .modo-btn {
+    flex: 1; padding: 16px; border-radius: 12px; border: 2px solid #334155;
+    background: #0f172a; color: #e2e8f0; font-size: 1rem; cursor: pointer; transition: .15s;
+  }
+  .modo-btn:hover { border-color: #64748b; }
+  .modo-btn.activo { border-color: #38bdf8; background: #0c4a6e; color: #fff; }
+  .rango { display: flex; gap: 8px; }
+  .rango-btn {
+    flex: 1; padding: 12px 4px; border-radius: 10px; border: 2px solid #334155;
+    background: #0f172a; color: #e2e8f0; font-size: .9rem; font-weight: 600;
+    cursor: pointer; transition: .15s;
+  }
+  .rango-btn:hover { border-color: #64748b; }
+  .rango-btn.activo { border-color: #38bdf8; background: #0c4a6e; color: #fff; }
+  .btn-principal {
+    width: 100%; padding: 16px; border: none; border-radius: 12px;
+    background: #38bdf8; color: #08263a; font-size: 1.1rem; font-weight: 700; cursor: pointer;
+  }
+  .btn-principal:hover { background: #7dd3fc; }
+
+  /* --- Modal de configuración --- */
+  .modal-backdrop {
+    position: fixed; inset: 0; background: rgba(0,0,0,.65);
+    display: flex; align-items: center; justify-content: center;
+    z-index: 10; padding: 20px;
+    animation: fade .15s ease;
+  }
+  @keyframes fade { from { opacity: 0; } to { opacity: 1; } }
+  .modal {
+    background: #1e293b; border: 1px solid #334155; border-radius: 20px;
+    padding: 26px; width: 100%; max-width: 480px;
+    box-shadow: 0 20px 60px rgba(0,0,0,.7);
+    animation: aparece .2s ease;
+  }
+  .modal h2 { font-size: 1.15rem; margin-bottom: 20px; text-align: center; font-weight: 600; }
+
+  /* --- Tarjetas --- */
+  .barra { height: 8px; background: #0f172a; border-radius: 99px; overflow: hidden; margin-bottom: 16px; }
+  .barra-fill { height: 100%; background: #38bdf8; transition: width .3s ease; }
+  .cabecera { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; }
+  #progreso { font-size: .95rem; color: #94a3b8; }
+  .chip {
+    background: #0f172a; border: 1px solid #334155; padding: 8px 16px;
+    border-radius: 99px; font-weight: 600; font-size: .9rem; color: #94a3b8;
+  }
+  .chip span { color: #38bdf8; font-size: 1.2rem; font-weight: 800; }
+
+  /* Vista simple (sin tarjetas) */
+  .escena-simple {
+    background: #f8fafc; border-radius: 16px; padding: 44px 20px; min-height: 260px;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 18px;
+  }
+  .num-grande, .equis {
+    font-size: 5.6rem; font-weight: 800; line-height: 1; animation: aparece .3s ease;
+  }
+  .num-grande { color: #1e3a8a; }
+  .num-grande.color-1 { color: #111111; }
+  .num-grande.color-2 { color: #d62828; }
+  .num-grande.color-3 { color: #1f9d41; }
+  .equis { color: #ef4444; }
+  .etiqueta {
+    font-size: 1.25rem; font-weight: 700; letter-spacing: 1px;
+    padding: 9px 24px; border-radius: 99px;
+  }
+  .etiqueta.si { background: #dcfce7; color: #15803d; }
+  .etiqueta.no { background: #fee2e2; color: #dc2626; }
+  @keyframes aparece { from { transform: scale(.4); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+
+  /* Vista con tarjetas */
+  .veredicto {
+    border-radius: 14px; padding: 16px; text-align: center; margin-bottom: 12px;
+    color: #fff; display: flex; flex-direction: column; gap: 3px;
+  }
+  .veredicto.no { background: #64748b; }
+  .veredicto .grande { font-size: 1.9rem; font-weight: 800; letter-spacing: 1px; }
+  .veredicto .sub { font-size: .95rem; opacity: .92; }
+  .grilla {
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(46px, 1fr));
+    gap: 5px; background: #f8fafc; border-radius: 14px; padding: 12px;
+    max-height: 320px; overflow: auto;
+  }
+  .celda {
+    background: #eef2f6; border-radius: 6px; padding: 6px 2px; text-align: center;
+    font-size: 13px; font-weight: 700;
+  }
+  .celda.color-1 { color: #111111; }
+  .celda.color-2 { color: #d62828; }
+  .celda.color-3 { color: #1f9d41; }
+  .celda.yo {
+    background: #fde047; box-shadow: 0 0 0 3px #f59e0b;
+    animation: pulso 1s ease-in-out infinite;
+  }
+  @keyframes pulso { 0%,100% { transform: scale(1); } 50% { transform: scale(1.18); } }
+
+  #siguiente { margin-top: 14px; }
+  [hidden] { display: none !important; }
+</style>
+</head>
+<body>
+<div class="panel">
+  <button type="button" class="engranaje" id="abrirConfig" title="Configuración" aria-label="Configuración">⚙</button>
+  <h1>Adivinar numero</h1>
+  <div id="estadoConfig"></div>
+
+  <!-- Pantalla de inicio -->
+  <section id="inicio">
+    <div class="campo">
+      <label for="numero">Número</label>
+      <input type="number" id="numero" min="1" max="1000" inputmode="numeric" placeholder="1 - 1000">
+    </div>
+    <button type="button" id="comenzar" class="btn-principal">Comenzar</button>
+  </section>
+
+  <!-- Pantalla de tarjetas -->
+  <section id="tarjetas" hidden>
+    <div class="barra"><div class="barra-fill" id="barraFill"></div></div>
+    <div class="cabecera">
+      <div id="progreso"></div>
+      <div class="chip">Nº <span id="numActual"></span></div>
+    </div>
+    <div id="escenario"></div>
+    <button type="button" id="siguiente" class="btn-principal">Siguiente</button>
+  </section>
+</div>
+
+<!-- Modal de configuración -->
+<div class="modal-backdrop" id="config" hidden>
+  <div class="modal">
+    <h2>Configuración</h2>
+    <div class="campo">
+      <label>Rango</label>
+      <div class="rango" id="rango">
+        <button type="button" class="rango-btn" data-min="0" data-max="63">0 - 63</button>
+        <button type="button" class="rango-btn" data-min="0" data-max="255">0 - 255</button>
+        <button type="button" class="rango-btn" data-min="0" data-max="511">0 - 511</button>
+        <button type="button" class="rango-btn activo" data-min="1" data-max="1000">1 - 1000</button>
+      </div>
+    </div>
+    <div class="campo">
+      <label>¿Mostrar las tarjetas?</label>
+      <div class="modo" id="modo">
+        <button type="button" class="modo-btn" data-modo="tarjetas">Mostrar tarjetas</button>
+        <button type="button" class="modo-btn activo" data-modo="simple">Sin tarjetas</button>
+      </div>
+    </div>
+    <button type="button" id="cerrarConfig" class="btn-principal">Listo</button>
+  </div>
+</div>
+
+<script>
+  const COLORES = {
+    1: { nombre: 'NEGRO', css: '#1a1a1a' },
+    2: { nombre: 'ROJO',  css: '#d62828' },
+    3: { nombre: 'VERDE', css: '#1f9d41' }
+  };
+
+  // Configuración (con sus valores por defecto)
+  let rangoMin = 1;
+  let rangoMax = 1000;
+  let modoSel  = 'simple';
+
+  const estado = { modo: 'simple', numero: 0, indice: 0, min: 1, max: 1000, total: 5 };
+
+  const inicio       = document.getElementById('inicio');
+  const tarjetas     = document.getElementById('tarjetas');
+  const inputNum     = document.getElementById('numero');
+  const escenario    = document.getElementById('escenario');
+  const btnSig       = document.getElementById('siguiente');
+  const config       = document.getElementById('config');
+  const estadoConfig = document.getElementById('estadoConfig');
+
+  document.querySelectorAll('.modo-btn').forEach(b => {
+    b.addEventListener('click', () => {
+      modoSel = b.dataset.modo;
+      document.querySelectorAll('.modo-btn').forEach(x => x.classList.toggle('activo', x === b));
+      actualizarEstadoConfig();
+    });
+  });
+
+  document.querySelectorAll('.rango-btn').forEach(b => {
+    b.addEventListener('click', () => {
+      rangoMin = parseInt(b.dataset.min, 10);
+      rangoMax = parseInt(b.dataset.max, 10);
+      document.querySelectorAll('.rango-btn').forEach(x => x.classList.toggle('activo', x === b));
+      inputNum.min = rangoMin;
+      inputNum.max = rangoMax;
+      inputNum.placeholder = `${rangoMin} - ${rangoMax}`;
+      const v = parseInt(inputNum.value, 10);
+      if (!isNaN(v) && (v < rangoMin || v > rangoMax)) inputNum.classList.add('error');
+      else inputNum.classList.remove('error');
+      actualizarEstadoConfig();
+    });
+  });
+
+  document.getElementById('abrirConfig').addEventListener('click', () => { config.hidden = false; });
+  document.getElementById('cerrarConfig').addEventListener('click', () => { config.hidden = true; });
+  config.addEventListener('click', e => { if (e.target === config) config.hidden = true; });
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape' && !config.hidden) config.hidden = true;
+  });
+
+  document.getElementById('comenzar').addEventListener('click', comenzar);
+  btnSig.addEventListener('click', siguiente);
+  inputNum.addEventListener('keydown', e => { if (e.key === 'Enter') comenzar(); });
+  document.addEventListener('keydown', e => { if (e.key === 'Enter' && !tarjetas.hidden) siguiente(); });
+
+  function actualizarEstadoConfig() {
+    const texto = modoSel === 'tarjetas' ? 'Mostrar tarjetas' : 'Sin tarjetas';
+    estadoConfig.textContent = `${rangoMin} - ${rangoMax} · ${texto}`;
+  }
+
+  function comenzar() {
+    const v = parseInt(inputNum.value, 10);
+    if (isNaN(v) || v < rangoMin || v > rangoMax) { inputNum.classList.add('error'); return; }
+    inputNum.classList.remove('error');
+
+    estado.numero = v;
+    estado.modo   = modoSel;
+    estado.indice = 0;
+    estado.min    = rangoMin;
+    estado.max    = rangoMax;
+    estado.total  = Math.ceil(Math.log(rangoMax + 1) / Math.log(4));
+
+    inicio.hidden = true;
+    tarjetas.hidden = false;
+    render();
+  }
+
+  function siguiente() {
+    estado.indice++;
+    if (estado.indice >= estado.total) {
+      tarjetas.hidden = true;
+      inicio.hidden = false;          // el número queda en el input como recordatorio
+      return;
+    }
+    render();
+  }
+
+  function render() {
+    const i = estado.indice;
+    const n = estado.numero;
+    const place = Math.pow(4, i);
+    const digito = Math.floor(n / place) % 4;
+    const presente = digito !== 0;
+
+    document.getElementById('progreso').textContent = `Tarjeta ${i + 1} de ${estado.total}`;
+    document.getElementById('numActual').textContent = n;
+    document.getElementById('barraFill').style.width = ((i + 1) / estado.total * 100) + '%';
+    btnSig.textContent = (i === estado.total - 1) ? 'Volver al inicio' : 'Siguiente';
+
+    if (estado.modo === 'tarjetas') renderTarjeta(i, n, place, digito, presente);
+    else renderSimple(n, digito, presente);
+  }
+
+  function renderSimple(n, digito, presente) {
+    if (presente) {
+      escenario.innerHTML =
+        `<div class="escena-simple">` +
+          `<div class="num-grande color-${digito}">${n}</div>` +
+          `<div class="etiqueta si">color ${COLORES[digito].nombre}</div>` +
+        `</div>`;
+    } else {
+      escenario.innerHTML =
+        `<div class="escena-simple">` +
+          `<div class="equis">✗</div>` +
+          `<div class="etiqueta no">NO ESTÁ</div>` +
+        `</div>`;
+    }
+  }
+
+  function renderTarjeta(i, n, place, digito, presente) {
+    let banner;
+    if (presente) {
+      const col = COLORES[digito];
+      banner =
+        `<div class="veredicto" style="background:${col.css}">` +
+          `<span class="grande">✓ ESTÁ</span>` +
+          `<span class="sub">color ${col.nombre}</span>` +
+        `</div>`;
+    } else {
+      banner =
+        `<div class="veredicto no">` +
+          `<span class="grande">✗ NO ESTÁ</span>` +
+          `<span class="sub">en la tarjeta ${i + 1}</span>` +
+        `</div>`;
+    }
+
+    let celdas = '';
+    for (let x = estado.min; x <= estado.max; x++) {
+      const d = Math.floor(x / place) % 4;
+      if (d !== 0) {
+        celdas += `<div class="celda color-${d}${x === n ? ' yo' : ''}">${x}</div>`;
+      }
+    }
+
+    escenario.innerHTML = banner + `<div class="grilla">${celdas}</div>`;
+
+    const yo = escenario.querySelector('.celda.yo');
+    if (yo) yo.scrollIntoView({ block: 'center', behavior: 'smooth' });
+  }
+
+  actualizarEstadoConfig();
+</script>
+</body>
+</html>
